@@ -1,4 +1,5 @@
 add_executable(AlsaCapture 
+  main.cpp
   AlsaCapture.cpp
   AlsaInterface.cpp
   )

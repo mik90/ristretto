@@ -1,25 +1,40 @@
-#include <cstddef>
-#include <cstdio>
-#include <cstdarg>
-#include <cerrno>
-#include <cstring>
-
-#include <alsa/asoundlib.h>
-
-#include <vector>
-#include <memory>
-#include <optional>
-#include <iostream>
-#include <string_view>
-
 #include "AlsaInterface.hpp"
 
+namespace mik {
+void AlsaInterface::captureAudio() {
+    std::fstream out (outputFile_);
+    if (out.is_open()) {
+        std::cerr << "Could not open" << outputFile_ << std::endl;
+        return;
+    }
 
-int main([[maybe_unused]] int argc,
-         [[maybe_unused]] char** argv) {
-    mik::AlsaInterface alsa(mik::defaultHw);
-    alsa.captureAudio();
+    logger_->info("Calculating amount of recording loops...");
+    int loopsLeft = calculateRecordingLoops();
+    logger_->info("Will be running {} loops", loopsLeft);
+    while (loopsLeft > 0) {
+        --loopsLeft;
+        auto status = snd_pcm_readi(handle_.get(), buffer_.get(), frames_);
+        if (status == -EPIPE) {
+            // Overran the buffer
+            std::cerr << "EPIPE Overran buffer, hit EPIPE\n";
+            snd_pcm_prepare(handle_.get());
+            continue;
+        }
+        else if(status < 0) {
+            logger_->error("Error reading from pcm. errno:{}", std::strerror(static_cast<int>(status)));
+            return;
+        }
+        else if(status != static_cast<int>(frames_)) {
+            logger_->error("Should've read 32 frames, only read {}.", frames_);
+            snd_pcm_prepare(handle_.get());
+            continue;
+        }
 
-    return 0;
+        out.write(buffer_.get(), static_cast<std::streamsize>(bufferSize_));
+    }
+
+    snd_pcm_drain(handle_.get());
+    return;
 }
 
+}

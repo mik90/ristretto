@@ -44,8 +44,10 @@ class AlsaInterface {
         void captureAudio();
     private:
         std::string captureDeviceName_;
-        unsigned int samplingRate_kHz_ = 16000;
+        //unsigned int samplingRate_bps_ = 16000;
+        unsigned int samplingRate_bps_ = 44100;
         unsigned int recordingTimeMs_ = 5000000;
+        unsigned int recordingPeriodMs_ = 0;
 
         snd_pcm_uframes_t frames_ = 32;
         snd_pcm_format_t format_ = SND_PCM_FORMAT_S16_LE;

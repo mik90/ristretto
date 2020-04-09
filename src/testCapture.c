@@ -11,7 +11,14 @@ and writes to standard output for 5 seconds of data.
 
 #include <alsa/asoundlib.h>
 
-int main() {
+int main(int argc, char** argv) {
+
+  if (argc > 1) {
+    fprintf(stderr, "Do not use with command line args!\n");
+    fprintf(stderr, "Just pipe the ouput to a .raw file using \'>\'\n");
+    return 1;
+  }
+
   long loops;
   int rc;
   int size;

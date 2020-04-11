@@ -8,7 +8,7 @@
             "name": "Debug",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/AlsaCapture",
+            "program": "${workspaceFolder}/build/bin/AlsaInterface",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

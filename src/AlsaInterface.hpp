@@ -56,37 +56,26 @@ struct AlsaConfig {
 
 };
 
-class AlsaPlayback {
+class AlsaInterface {
     public:
-        AlsaPlayback(const AlsaConfig& config = AlsaConfig(), std::optional<std::filesystem::path> inputFile = {});
+        AlsaInterface(std::string_view pcmDesc = defaultHw);
+        void captureAudio(std::filesystem::path outputFile);
+        void playbackAudio(std::filesystem::path inputFile);
     private:
-        std::unique_ptr<char> inputBuffer_;
-        AlsaConfig config_;
-        std::optional<std::filesystem::path> inputFile_ = {};
-        std::unique_ptr<spdlog::logger> logger_;
-};
-
-class AlsaCapture {
-    public:
-        AlsaCapture(std::string_view captureDeviceName, const AlsaConfig& config = AlsaConfig());
-        void captureAudio();
-    private:
-        AlsaConfig  config_;
-        std::string captureDeviceName_;
-        // Have to make params a raw pointer since the underlying type is opaque (apparently)
-        snd_pcm_hw_params_t* params_;
-        std::unique_ptr<snd_pcm_t, SndPcmDeleter> handle_;
-        std::unique_ptr<char> buffer_;
-        size_t bufferSize_;
-       
-        std::filesystem::path outputFile_;
-        std::unique_ptr<spdlog::logger> logger_;
-
         // TODO
         // Write to file (.raw or maybe wav)
         // Record x seconds of audio
         // Use AlsaConfig
-        snd_pcm_t* getSoundDeviceHandle(std::string_view captureDevice);
+        snd_pcm_t* getSoundDeviceHandle(std::string_view pcmDesc);
+        std::unique_ptr<char> inputBuffer_;
+        AlsaConfig config_;
+        std::unique_ptr<spdlog::logger> logger_;
+        
+        // Have to make params a raw pointer since the underlying type is opaque (apparently)
+        snd_pcm_hw_params_t* params_;
+        std::unique_ptr<snd_pcm_t, SndPcmDeleter> pcmHandle_;
+        std::unique_ptr<char> buffer_;
+        size_t bufferSize_;
 };
 
 }

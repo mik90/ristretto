@@ -4,16 +4,7 @@
 namespace mik {
 
 
-
-AlsaPlayback::AlsaPlayback(const AlsaConfig& config, std::optional<std::filesystem::path> inputFile) 
-                                                                 : config_(config),
-                                                                   inputFile_(inputFile) {
-                                                                    
-
-    logger_ = std::make_unique<spdlog::logger>("AlsaPlaybackLogger", logFileSink);
-}
-
-inline snd_pcm_t* AlsaCapture::getSoundDeviceHandle(std::string_view captureDevice) {
+inline snd_pcm_t* AlsaInterface::getSoundDeviceHandle(std::string_view captureDevice) {
     snd_pcm_t* pcmHandle = nullptr;
     const int err = snd_pcm_open(&pcmHandle, captureDevice.data(), SND_PCM_STREAM_CAPTURE, 0x0);
     if (err != 0) {
@@ -24,19 +15,15 @@ inline snd_pcm_t* AlsaCapture::getSoundDeviceHandle(std::string_view captureDevi
 }
 
 
-AlsaCapture::AlsaCapture(std::string_view captureDeviceName, const AlsaConfig& config)
-                                                                 : config_(config),
-                                                                   captureDeviceName_(captureDeviceName),
-                                                                   handle_(nullptr, SndPcmDeleter{}),
-                                                                   outputFile_("./output.raw") {
+AlsaInterface::AlsaInterface(std::string_view pcmDesc) {
 
     logger_ = std::make_unique<spdlog::logger>("AlsaCaptureLogger", logFileSink);
     logger_->info("Initialized logger");
 
     // Reference: https://www.linuxjournal.com/article/6735
-    handle_.reset(getSoundDeviceHandle(captureDeviceName_));
-    if (!handle_) {
-        logger_->error("Could not get handle for the capture device: {}.", captureDeviceName_);
+    pcmHandle_.reset(getSoundDeviceHandle(pcmDesc));
+    if (!pcmHandle_) {
+        logger_->error("Could not get handle for the capture device: {}.", pcmDesc);
         return;
     }
 
@@ -48,25 +35,25 @@ AlsaCapture::AlsaCapture(std::string_view captureDeviceName, const AlsaConfig& c
     }
 
     logger_->info("Setting sound card parameters...");
-    snd_pcm_hw_params_any(handle_.get(), params_);
-    snd_pcm_hw_params_set_format(handle_.get(), params_, config_.format);
-    snd_pcm_hw_params_set_channels(handle_.get(), params_, static_cast<unsigned int>(config_.channelConfig));
-    snd_pcm_hw_params_set_access(handle_.get(), params_, config_.accessType);
+    snd_pcm_hw_params_any(pcmHandle_.get(), params_);
+    snd_pcm_hw_params_set_format(pcmHandle_.get(), params_, config_.format);
+    snd_pcm_hw_params_set_channels(pcmHandle_.get(), params_, static_cast<unsigned int>(config_.channelConfig));
+    snd_pcm_hw_params_set_access(pcmHandle_.get(), params_, config_.accessType);
 
     // Set sampling rate
     int dir = 0;
     unsigned int val = config_.samplingRate_bps;
     logger_->info("Attempting to get a sampling rate of {} bits per second", val);
-    snd_pcm_hw_params_set_rate_near(handle_.get(), params_, &val, &dir);
+    snd_pcm_hw_params_set_rate_near(pcmHandle_.get(), params_, &val, &dir);
     logger_->info("Got a sampling rate of {} bits per second", val);
 
     // Set period size to X frames
     logger_->info("Attempting to set period size to {} frames", config_.frames);
-    snd_pcm_hw_params_set_period_size_near(handle_.get(), params_, &(config_.frames), &dir);
+    snd_pcm_hw_params_set_period_size_near(pcmHandle_.get(), params_, &(config_.frames), &dir);
     logger_->info("Period size was set to {} frames", config_.frames);
 
     // Write parameters to the driver
-    int status = snd_pcm_hw_params(handle_.get(), params_);
+    int status = snd_pcm_hw_params(pcmHandle_.get(), params_);
     if (status != 0) {
         logger_->error("Could not write parameters to the sound driver!");
         logger_->error("snd_pcm_hw_params() errno:{}", std::strerror(errno));

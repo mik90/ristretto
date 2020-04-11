@@ -8,10 +8,9 @@ static constexpr auto Usage =
   R"(AlsaInterface.
 
     Usage:
-          AlsaInterface capture [--file=<outputFile>]
-          AlsaInterface playback [--file=<inputFile>]
+          AlsaInterface capture <output_filename>
+          AlsaInterface playback <input_audio_file>
     Options:
-          --file=<board_file>   Input a file that contains a board state.
           -h --help             Show this screen.
           -v --version          Show the version.
 )";
@@ -24,22 +23,20 @@ int main(int argc, char** argv) {
     auto args = docopt::docopt(Usage, { std::next(argv), std::next(argv, argc) },
                                 true,// show help if requested
                                 "AlsaInterface 0.1");// version string
-
+    for(auto const& arg : args) {
+        std::cout << arg.first << ": " << arg.second << std::endl;
+    }
     const auto capture = args[std::string("capture")];
     const auto playback = args[std::string("playback")];
     
-    const auto file = args[std::string("--file")];
-
-    if (!file) {
-        fmt::print("Did not see \'--file\' as an argument");
-        fmt::print("Usage: {}", Usage);
-    }
+    const auto outputFilename = args[std::string("<output_filename>")];
+    const auto inputAudioFile = args[std::string("<input_audio_file>")];
 
     if (capture) {
-        alsa.captureAudio(file.asString());
+        alsa.captureAudio(outputFilename.asString());
     }
     else if (playback) {
-        alsa.playbackAudio(file.asString());
+        alsa.playbackAudio(inputAudioFile.asString());
     }
 
     return 0;

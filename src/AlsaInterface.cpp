@@ -17,7 +17,13 @@ inline snd_pcm_t* AlsaInterface::getSoundDeviceHandle(std::string_view captureDe
 
 AlsaInterface::AlsaInterface(std::string_view pcmDesc) {
 
-    logger_ = std::make_unique<spdlog::logger>("AlsaCaptureLogger", logFileSink);
+    try {
+        logger_ = spdlog::basic_logger_mt("AlsaLogger", "logs/client.log", true);
+    }
+    catch(const spdlog::spdlog_ex& e) {
+        std::cerr << "Log init failed: " << e.what() << std::endl;
+    }
+
     logger_->info("Initialized logger");
 
     // Reference: https://www.linuxjournal.com/article/6735
@@ -77,6 +83,8 @@ AlsaInterface::AlsaInterface(std::string_view pcmDesc) {
     buffer_.reset(static_cast<char*>(std::malloc(bufferSize)));
     bufferSize_ = bufferSize;
 
+    logger_->info("Finished AlsaInterface construction");
+    logger_->flush();
 }
 
 }

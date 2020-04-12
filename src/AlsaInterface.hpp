@@ -27,9 +27,6 @@ const std::string_view speechMike("hw:III");
 
 enum class ChannelConfig : unsigned int {MONO = 1, STEREO = 2};
 
-constexpr bool deleteOldLog = true; 
-static auto logFileSink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("logs/client.log", deleteOldLog);
-
 struct SndPcmDeleter {
     void operator()(snd_pcm_t* p) {
         int err = snd_pcm_close(p);
@@ -69,7 +66,7 @@ class AlsaInterface {
         snd_pcm_t* getSoundDeviceHandle(std::string_view pcmDesc);
         std::unique_ptr<char> inputBuffer_;
         AlsaConfig config_;
-        std::unique_ptr<spdlog::logger> logger_;
+        std::shared_ptr<spdlog::logger> logger_;
         
         // Have to make params a raw pointer since the underlying type is opaque (apparently)
         snd_pcm_hw_params_t* params_;

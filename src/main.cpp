@@ -31,7 +31,6 @@ int main(int argc, char** argv) {
     }
     fmt::print("--------\n");
 
-    mik::AlsaInterface alsa(mik::defaultHw);
     const auto capture = args[std::string("capture")];
     const auto playback = args[std::string("playback")];
     
@@ -39,9 +38,11 @@ int main(int argc, char** argv) {
     const auto inputAudioFile = args[std::string("<input_audio_file>")];
 
     if (capture && outputFilename) {
+        mik::AlsaInterface alsa(mik::StreamConfig::CAPTURE, mik::defaultHw);
         alsa.captureAudio(outputFilename.asString());
     }
     else if (playback && inputAudioFile) {
+        mik::AlsaInterface alsa(mik::StreamConfig::PLAYBACK, mik::defaultHw);
         alsa.playbackAudio(inputAudioFile.asString());
     }
 

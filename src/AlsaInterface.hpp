@@ -25,6 +25,10 @@ const std::string_view defaultHw("default");
 const std::string_view intelPch("hw:PCH");
 const std::string_view speechMike("hw:III");
 
+enum class Status {SUCCESS, ERROR};
+
+enum class StreamConfig : unsigned int {PLAYBACK = SND_PCM_STREAM_PLAYBACK, CAPTURE = SND_PCM_STREAM_CAPTURE,
+                                        UNKNOWN = 99};
 enum class ChannelConfig : unsigned int {MONO = 1, STEREO = 2};
 
 struct SndPcmDeleter {
@@ -55,21 +59,21 @@ struct AlsaConfig {
 
 class AlsaInterface {
     public:
-        AlsaInterface(std::string_view pcmDesc = defaultHw);
+        AlsaInterface(StreamConfig streamConfig, std::string_view pcmDesc = defaultHw);
         void captureAudio(std::filesystem::path outputFile);
         void playbackAudio(std::filesystem::path inputFile);
     private:
-        // TODO
-        // Write to file (.raw or maybe wav)
-        // Record x seconds of audio
-        // Use AlsaConfig
-        snd_pcm_t* getSoundDeviceHandle(std::string_view pcmDesc);
+        Status configureInterface(StreamConfig streamConfig, std::string_view pcmDesc);
+        inline bool isConfiguredForPlayback() const noexcept { return streamConfig_ == StreamConfig::PLAYBACK; }
+        inline bool isConfiguredForCapture() const noexcept { return streamConfig_ == StreamConfig::CAPTURE; }
+        snd_pcm_t* openSoundDevice(std::string_view pcmDesc, StreamConfig streamConfig);
         std::unique_ptr<char> inputBuffer_;
         AlsaConfig config_;
         std::shared_ptr<spdlog::logger> logger_;
         
         // Have to make params a raw pointer since the underlying type is opaque (apparently)
         snd_pcm_hw_params_t* params_;
+        StreamConfig streamConfig_;
         std::unique_ptr<snd_pcm_t, SndPcmDeleter> pcmHandle_;
         std::unique_ptr<char> buffer_;
         size_t bufferSize_;

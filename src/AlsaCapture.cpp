@@ -18,6 +18,8 @@ void AlsaInterface::captureAudio(std::filesystem::path outputFile) {
     auto startTime = std::chrono::steady_clock::now();
 
     logger_->info("Will be running {} loops", loopsLeft);
+    logger_->info("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
+
     while (loopsLeft > 0) {
         --loopsLeft;
         auto status = snd_pcm_readi(pcmHandle_.get(), buffer_.get(), config_.frames);
@@ -32,7 +34,7 @@ void AlsaInterface::captureAudio(std::filesystem::path outputFile) {
             return;
         }
         else if(status != static_cast<int>(config_.frames)) {
-            logger_->error("Should've read 32 frames, only read {}.", config_.frames);
+            logger_->error("Should've read {} frames, only read {}.", config_.frames, status);
             snd_pcm_prepare(pcmHandle_.get());
             continue;
         }

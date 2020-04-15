@@ -4,33 +4,30 @@
 namespace mik {
 
 
-inline snd_pcm_t* AlsaInterface::getSoundDeviceHandle(std::string_view captureDevice) {
+inline snd_pcm_t* AlsaInterface::openSoundDevice(std::string_view pcmDesc, StreamConfig streamDir) {
     snd_pcm_t* pcmHandle = nullptr;
-    const int err = snd_pcm_open(&pcmHandle, captureDevice.data(), SND_PCM_STREAM_CAPTURE, 0x0);
+    const int err = snd_pcm_open(&pcmHandle, pcmDesc.data(), static_cast<snd_pcm_stream_t>(streamDir), 0x0);
     if (err != 0) {
         logger_->error("Couldn't get capture handle, error:{}", std::strerror(err));
         return nullptr;
     }
+    const std::string iface = (streamDir == StreamConfig::CAPTURE) ? "CAPTURE" : "PLAYBACK";
+    logger_->info("Configured interface \'{}\' for {}", pcmDesc, iface);
     return pcmHandle;
 }
 
+Status AlsaInterface::configureInterface(StreamConfig streamConfig, std::string_view pcmDesc) {
 
-AlsaInterface::AlsaInterface(std::string_view pcmDesc) {
-
-    try {
-        logger_ = spdlog::basic_logger_mt("AlsaLogger", "logs/client.log", true);
+    if (pcmHandle_ && streamConfig == streamConfig_) {
+        logger_->info("ALSA Interface is already configured.");
+        return Status::SUCCESS;
     }
-    catch(const spdlog::spdlog_ex& e) {
-        std::cerr << "Log init failed: " << e.what() << std::endl;
-    }
-
-    logger_->info("Initialized logger");
 
     // Reference: https://www.linuxjournal.com/article/6735
-    pcmHandle_.reset(getSoundDeviceHandle(pcmDesc));
+    pcmHandle_.reset(openSoundDevice(pcmDesc, streamConfig));
     if (!pcmHandle_) {
         logger_->error("Could not get handle for the capture device: {}.", pcmDesc);
-        return;
+        return Status::ERROR;
     }
 
     logger_->info("Allocating memory for parameters...");
@@ -63,7 +60,7 @@ AlsaInterface::AlsaInterface(std::string_view pcmDesc) {
     if (status != 0) {
         logger_->error("Could not write parameters to the sound driver!");
         logger_->error("snd_pcm_hw_params() errno:{}", std::strerror(errno));
-        return;
+        return Status::ERROR;
     }
 
     // Create a buffer to hold a period
@@ -79,9 +76,34 @@ AlsaInterface::AlsaInterface(std::string_view pcmDesc) {
     logger_->info("Retrieved recording period of {} ms", config_.recordingPeriod_us);
 
     size_t bufferSize = config_.frames * 4; // 2 bytes/sample, 2 channel
+
     logger_->info("Buffer size is {} bytes", bufferSize);
     buffer_.reset(static_cast<char*>(std::malloc(bufferSize)));
     bufferSize_ = bufferSize;
+
+    return Status::SUCCESS;
+}
+
+AlsaInterface::AlsaInterface(StreamConfig streamConfig, std::string_view pcmDesc)
+ {
+
+    try {
+        logger_ = spdlog::basic_logger_mt("AlsaLogger", "logs/client.log", true);
+    }
+    catch(const spdlog::spdlog_ex& e) {
+        std::cerr << "Log init failed: " << e.what() << std::endl;
+    }
+
+    logger_->info("Initialized logger");
+
+    logger_->info("Configuring interface...");
+    if (this->configureInterface(streamConfig, pcmDesc) == Status::SUCCESS) {
+        logger_->info("Configured interface successfully");
+    }
+    else {
+        logger_->error("Could not configure AlsaInterface");
+        return;
+    }
 
     logger_->info("Finished AlsaInterface construction");
     logger_->flush();

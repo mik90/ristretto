@@ -45,10 +45,25 @@ void AlsaInterface::captureAudio(std::filesystem::path outputFile) {
     logger_->info("Capture was configured to take {} milliseconds, it actually took {} ms",
                    config_.recordingTime_us / 1000, actualDuration);
 
+    logger_->info("Capture done, running snd_pcm_drop...");
+    logger_->flush();
+    const auto status = snd_pcm_drop(pcmHandle_.get());
+    if (status != 0) {
+        logger_->error("snd_pcm_drop failed with error: {}", std::strerror(status));
+    }
+    logger_->info("Drop done.");
+    /*
     logger_->info("Capture done, running snd_pcm_drain...");
     logger_->flush(); // it may hang on drain
-    snd_pcm_drain(pcmHandle_.get());
+    const auto status = snd_pcm_drain(pcmHandle_.get());
+    if (status == -ESTRPIPE) {
+        logger_->error("snd_pcm_drain was suspended during drain");
+    }
+    else if (status != 0) {
+        logger_->error("snd_pcm_drain failed with error: {}", std::strerror(status));
+    }
     logger_->info("Drain done.");
+    */
     logger_->flush();
     return;
 }

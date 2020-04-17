@@ -1,6 +1,7 @@
 
 build/
 logs/
+*.wav
 
 # Log files
 *.log

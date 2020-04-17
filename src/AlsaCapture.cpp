@@ -3,13 +3,13 @@
 #include "AlsaInterface.hpp"
 
 namespace mik {
-void AlsaInterface::captureAudio(std::filesystem::path outputFile) {
 
-    std::fstream outputStream (outputFile, outputStream.trunc | outputStream.out);
+void AlsaInterface::captureAudio(std::ostream& outputStream) {
 
-    if (!outputStream.is_open()) {
-        logger_->error("Could not open {} for creating/writing", std::string(outputFile));
-        return;
+    logger_->info("Starting capture...");
+
+    if (this->isConfiguredForCapture()) {
+        this->configureInterface(StreamConfig::CAPTURE, pcmDesc_);
     }
 
     logger_->info("Calculating amount of recording loops...");
@@ -38,8 +38,8 @@ void AlsaInterface::captureAudio(std::filesystem::path outputFile) {
             snd_pcm_prepare(pcmHandle_.get());
             continue;
         }
-
-        outputStream.write(buffer_.get(), static_cast<std::streamsize>(bufferSize_));
+        
+        outputStream.write(buffer_.get(), bufferSize_);
     }
 
     auto endTime = std::chrono::steady_clock::now();
@@ -54,6 +54,7 @@ void AlsaInterface::captureAudio(std::filesystem::path outputFile) {
         logger_->error("snd_pcm_drop failed with error: {}", std::strerror(status));
     }
     logger_->info("Drop done.");
+
     /*
     logger_->info("Capture done, running snd_pcm_drain...");
     logger_->flush(); // it may hang on drain
@@ -66,7 +67,7 @@ void AlsaInterface::captureAudio(std::filesystem::path outputFile) {
     }
     logger_->info("Drain done.");
     */
-    logger_->flush();
+
     return;
 }
 

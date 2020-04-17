@@ -1,4 +1,5 @@
 #include <docopt/docopt.h>
+#include <spdlog/spdlog.h> 
 #include <fmt/core.h>
 
 #include "AlsaInterface.hpp"
@@ -36,14 +37,26 @@ int main(int argc, char** argv) {
     
     const auto outputFilename = args[std::string("<output_filename>")];
     const auto inputAudioFile = args[std::string("<input_audio_file>")];
+    
+    mik::AlsaInterface alsa(mik::StreamConfig::PLAYBACK, mik::defaultHw);
+    auto logger = spdlog::get("AlsaLogger");
 
     if (capture && outputFilename) {
-        mik::AlsaInterface alsa(mik::StreamConfig::CAPTURE, mik::defaultHw);
-        alsa.captureAudio(outputFilename.asString());
+        std::fstream outputStream (outputFilename.asString(), outputStream.trunc | outputStream.out);
+
+        if (!outputStream.is_open()) {
+            logger->error("Could not open {} for creating/writing", outputFilename.asString());
+            std::exit(1);
+        }
+        alsa.captureAudio(outputStream);
     }
     else if (playback && inputAudioFile) {
-        mik::AlsaInterface alsa(mik::StreamConfig::PLAYBACK, mik::defaultHw);
-        alsa.playbackAudio(inputAudioFile.asString());
+        std::fstream inputStream (inputAudioFile.asString(), inputStream.in);
+        if (!inputStream.is_open()) {
+            logger->error("Could not open {} for reading", inputAudioFile.asString());
+            std::exit(1);
+        }
+        alsa.playbackAudio(inputStream);
     }
 
     return 0;

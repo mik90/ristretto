@@ -60,8 +60,8 @@ struct AlsaConfig {
 class AlsaInterface {
     public:
         AlsaInterface(StreamConfig streamConfig, std::string_view pcmDesc = defaultHw);
-        void captureAudio(std::filesystem::path outputFile);
-        void playbackAudio(std::filesystem::path inputFile);
+        void captureAudio(std::ostream& outputStream);
+        void playbackAudio(std::istream& inputStream);
     private:
         Status configureInterface(StreamConfig streamConfig, std::string_view pcmDesc);
         inline bool isConfiguredForPlayback() const noexcept { return streamConfig_ == StreamConfig::PLAYBACK; }
@@ -74,9 +74,10 @@ class AlsaInterface {
         // Have to make params a raw pointer since the underlying type is opaque (apparently)
         snd_pcm_hw_params_t* params_;
         StreamConfig streamConfig_;
+        std::string pcmDesc_;
         std::unique_ptr<snd_pcm_t, SndPcmDeleter> pcmHandle_;
         std::unique_ptr<char> buffer_;
-        size_t bufferSize_;
+        std::streamsize bufferSize_;
 };
 
 }

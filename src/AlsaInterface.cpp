@@ -79,13 +79,13 @@ Status AlsaInterface::configureInterface(StreamConfig streamConfig, std::string_
 
     logger_->info("Buffer size is {} bytes", bufferSize);
     buffer_.reset(static_cast<char*>(std::malloc(bufferSize)));
-    bufferSize_ = bufferSize;
+    bufferSize_ = static_cast<std::streamsize>(bufferSize);
 
     return Status::SUCCESS;
 }
 
-AlsaInterface::AlsaInterface(StreamConfig streamConfig, std::string_view pcmDesc)
- {
+AlsaInterface::AlsaInterface(StreamConfig streamConfig, std::string_view pcmDesc) 
+                                                               : pcmDesc_(pcmDesc) {
 
     try {
         logger_ = spdlog::basic_logger_mt("AlsaLogger", "logs/client.log", true);
@@ -106,6 +106,7 @@ AlsaInterface::AlsaInterface(StreamConfig streamConfig, std::string_view pcmDesc
     }
 
     logger_->info("Finished AlsaInterface construction");
+    logger_->info("");
     logger_->flush();
 }
 

@@ -3,14 +3,12 @@
 #include "AlsaInterface.hpp"
 
 namespace mik {
-void AlsaInterface::playbackAudio(std::filesystem::path inputFile) {
+void AlsaInterface::playbackAudio(std::istream& inputStream) {
 
-    //std::fstream inputStream (inputFile, inputStream.in);
-    std::FILE* f = std::fopen(inputFile.c_str(), "r");
+    logger_->info("Starting playback...");
 
-    if (!f) {
-        logger_->error("Could not open {} for reading", std::string(inputFile));
-        return;
+    if (this->isConfiguredForPlayback()) {
+        this->configureInterface(StreamConfig::PLAYBACK, pcmDesc_);
     }
     
     logger_->info("Calculating amount of recording loops...");
@@ -21,7 +19,7 @@ void AlsaInterface::playbackAudio(std::filesystem::path inputFile) {
     const auto startStatus = snd_pcm_start(pcmHandle_.get());
     if (startStatus != 0) {
         logger_->error("Could not start PCM errno:{}", std::strerror(startStatus));
-        std::fclose(f);
+        snd_pcm_drop(pcmHandle_.get());
         return;
     }
     
@@ -31,7 +29,8 @@ void AlsaInterface::playbackAudio(std::filesystem::path inputFile) {
         --loopsLeft;
 
         // Read in bufferSize amount of bytes from the audio file into the buffer
-        const auto bytesRead = std::fread(buffer_.get(), sizeof(char), bufferSize_, f);
+        inputStream.read(buffer_.get(), bufferSize_);
+        const auto bytesRead = inputStream.gcount();
         if (bytesRead == 0) {
             logger_->error("Hit unexpected EOF on audio input");
             break;
@@ -61,17 +60,14 @@ void AlsaInterface::playbackAudio(std::filesystem::path inputFile) {
         else if(status != static_cast<int>(config_.frames)) {
             logger_->error("Should've written {} frames, only wrote {}.", config_.frames, status);
             logger_->info("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
-            //snd_pcm_prepare(pcmHandle_.get());
-            //continue;
-            break;
+            snd_pcm_prepare(pcmHandle_.get());
+            continue;
         }
 
     }
 
     snd_pcm_drop(pcmHandle_.get());
-    logger_->info("Finished reading audio from {}", static_cast<std::string>(inputFile));
-    logger_->flush();
-    std::fclose(f);
+    logger_->info("Finished audio playback");
     return;
 }
 

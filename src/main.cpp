@@ -9,8 +9,8 @@ static constexpr auto Usage =
 R"(AlsaInterface.
 
     Usage:
-          AlsaInterface capture <output_filename>
-          AlsaInterface playback <input_audio_file>
+          AlsaInterface capture --file <output_filename>
+          AlsaInterface playback --file <input_audio_file>
           AlsaInterface (-h | --help)
           AlsaInterface (-v | --version)
 

@@ -2,6 +2,8 @@
 build/
 logs/
 *.wav
+.vscode/c_cpp_properties.json
+.vscode/settings.json
 
 # Log files
 *.log

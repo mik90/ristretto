@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
     auto logger = spdlog::get("AlsaLogger");
 
     if (capture && outputFilename) {
-        std::fstream outputStream (outputFilename.asString(), outputStream.trunc | outputStream.out);
+        std::fstream outputStream(outputFilename.asString(), outputStream.trunc | outputStream.out);
 
         if (!outputStream.is_open()) {
             logger->error("Could not open {} for creating/writing", outputFilename.asString());
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
         alsa.captureAudio(outputStream);
     }
     else if (playback && inputAudioFile) {
-        std::fstream inputStream (inputAudioFile.asString(), inputStream.in);
+        std::fstream inputStream(inputAudioFile.asString(), inputStream.in);
         if (!inputStream.is_open()) {
             logger->error("Could not open {} for reading", inputAudioFile.asString());
             std::exit(1);

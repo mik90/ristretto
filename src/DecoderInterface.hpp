@@ -3,6 +3,10 @@
 #include <boost/asio.hpp>
 #include <spdlog/spdlog.h> 
 
+#include <vector>
+#include <string>
+#include <string_view>
+
 constexpr long MaxLength = 65535;
 
 namespace mik {
@@ -14,8 +18,8 @@ namespace mik {
         public:
             DecoderInterface();
             void connect(std::string_view host, std::string_view port);
-            size_t sendAudio(const std::unique_ptr<char>& buffer, size_t nBytes);
-            std::string readResults();
+            size_t sendAudio(std::vector<char>& buffer);
+            std::string getResult();
         private:
             std::shared_ptr<spdlog::logger> logger_;
             boost::asio::io_context         ioContext_;

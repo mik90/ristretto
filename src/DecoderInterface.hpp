@@ -14,11 +14,14 @@ namespace mik {
 
 // Given a stream of audio, send it over TCP
 
+// aka snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
+using AudioType = char;
+
 class DecoderInterface {
 public:
   DecoderInterface();
   void connect(std::string_view host, std::string_view port);
-  size_t sendAudio(std::vector<char> &buffer);
+  size_t sendAudio(std::vector<AudioType> &buffer);
   std::string getResult();
 
 private:

@@ -3,6 +3,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 
@@ -49,7 +50,7 @@ void DecoderInterface::connect(std::string_view host, std::string_view port) {
   }
 }
 
-size_t DecoderInterface::sendAudio(std::vector<char> &buffer) {
+size_t DecoderInterface::sendAudio(std::vector<AudioType> &buffer) {
   logger_->debug("Writing to the socket...");
   // TODO This should be a const_buffer, but there doesn't seem to be a vector -> const_buffer constructor
   try {
@@ -89,11 +90,13 @@ std::streampos findSizeOfFileStream(std::istream &str) {
   return size;
 }
 
-std::vector<char> readInAudiofile(std::string_view filename) {
+std::vector<AudioType> readInAudiofile(std::string_view filename) {
 
   auto logger = spdlog::get("DecodeInterfaceLogger");
 
   std::fstream inputStream(std::string(filename), inputStream.in | std::fstream::binary);
+  std::istream_iterator<AudioType> inputIter(inputStream);
+
   if (!inputStream.is_open()) {
     logger->error("Could not open inputfile for reading\n");
     return {};
@@ -103,14 +106,17 @@ std::vector<char> readInAudiofile(std::string_view filename) {
   logger->debug("{} is {} bytes", filename, inputSize);
 
   // Read in bufferSize amount of bytes from the audio file into the buffer
-  std::vector<char> audioBuffer;
-  audioBuffer.reserve(static_cast<std::vector<char>::size_type>(inputSize));
+  std::vector<AudioType> audioBuffer;
+  audioBuffer.reserve(static_cast<std::vector<AudioType>::size_type>(inputSize));
+  logger->debug("audioBuffer has {} bytes before reading in file", audioBuffer.size());
 
   // Read in entire file
-  inputStream.read(audioBuffer.data(), inputSize);
+  std::copy(inputIter, std::istream_iterator<AudioType>(), std::back_inserter(audioBuffer));
+  // inputStream.read(audioBuffer.data(), inputSize);
 
   const auto bytesRead = inputStream.gcount();
   logger->debug("Read in {} out of {} bytes from audio file", bytesRead, inputSize);
+  logger->debug("audioBuffer has {} bytes after reading in file", audioBuffer.size());
 
   return audioBuffer;
 }
@@ -121,15 +127,18 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
 
   mik::DecoderInterface iface;
   iface.connect("127.0.0.1", "5050");
+  fmt::print("Connected.\n");
 
   auto audioData = mik::readInAudiofile("audio.raw");
   if (audioData.empty()) {
+    fmt::print("Audiofile was empty.\n");
     return -1;
   }
   iface.sendAudio(audioData);
 
   const auto result = iface.getResult();
   if (result.empty()) {
+    fmt::print("Result was empty.");
     return -1;
   }
   fmt::print("Result: {}", result);

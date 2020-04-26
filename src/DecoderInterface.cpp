@@ -18,7 +18,9 @@ DecoderInterface::DecoderInterface() : ioContext_(), socket_(ioContext_) {
         std::cerr << "Log init failed with spdlog_ex: " << e.what() << std::endl;
     }
     
+    logger_->info("--------------------------------------------");
     logger_->info("DecoderInterface created.");
+    logger_->info("--------------------------------------------");
     logger_->set_level(spdlog::level::level_enum::debug);
     logger_->debug("Debug-level logging enabled");
 }
@@ -50,10 +52,16 @@ void DecoderInterface::connect(std::string_view host, std::string_view port) {
 }
 
 size_t DecoderInterface::sendAudio(std::vector<char>& buffer) {
+    logger_->debug("Writing to the socket...");
     // TODO This should be a const_buffer, but there doesn't seem to be a vector -> const_buffer constructor
-    const auto bytesWritten = boost::asio::write(socket_, boost::asio::buffer(buffer));
-    logger_->debug("Wrote out {} bytes of audio", bytesWritten);
-    return bytesWritten;
+    try {
+        const auto bytesWritten = boost::asio::write(socket_, boost::asio::buffer(buffer));
+        logger_->debug("Wrote {} bytes of audio to the socket", bytesWritten);
+        return bytesWritten;
+    } catch (const boost::system::system_error& e) {
+        logger_->error("Couldn't write to socket: {}", e.what());
+        return 0;
+    }
 }
 
 std::string DecoderInterface::getResult() {
@@ -70,6 +78,9 @@ std::string DecoderInterface::getResult() {
     const auto bufIter = streamBuf.data();
     const std::string result(boost::asio::buffers_begin(bufIter),
                                 boost::asio::buffers_begin(bufIter) + static_cast<long>(bytesRead));
+    if (result.empty()) {
+        logger_->error("The result from the decoder was empty");
+    }
     return result;
 }
 
@@ -121,6 +132,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
     iface.sendAudio(audioData);
 
     const auto result = iface.getResult();
+    if (result.empty()) {
+        return -1;
+    }
     fmt::print("Result: {}", result);
 
     return 0;

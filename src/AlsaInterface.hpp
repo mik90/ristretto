@@ -55,11 +55,20 @@ struct AlsaConfig {
   ChannelConfig channelConfig = ChannelConfig::STEREO; // Stereo
 
   int calculateRecordingLoops() { return static_cast<int>(recordingTime_us / recordingPeriod_us); }
+
+  // Isn't there a way to automatically generate this?
+  inline bool operator==(const AlsaConfig& rhs) const noexcept {
+    return samplingRate_bps == rhs.samplingRate_bps && recordingTime_us == rhs.recordingTime_us &&
+           recordingPeriod_us == rhs.recordingPeriod_us && frames == rhs.frames &&
+           format == rhs.format && accessType == rhs.accessType &&
+           channelConfig == rhs.channelConfig;
+  }
+  inline bool operator!=(const AlsaConfig& rhs) const noexcept { return !(*this == rhs); }
 };
 
 class AlsaInterface {
 public:
-  AlsaInterface(const StreamConfig streamConfig, std::string_view pcmDesc = defaultHw,
+  AlsaInterface(const StreamConfig& streamConfig, std::string_view pcmDesc = defaultHw,
                 const AlsaConfig& alsaConfig = AlsaConfig());
   void captureAudio(std::ostream& outputStream);
   void playbackAudio(std::istream& inputStream);

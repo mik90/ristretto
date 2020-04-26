@@ -27,11 +27,15 @@ const std::string_view speechMike("hw:III");
 
 enum class Status { SUCCESS, ERROR };
 
-enum class StreamConfig : unsigned int { PLAYBACK = SND_PCM_STREAM_PLAYBACK, CAPTURE = SND_PCM_STREAM_CAPTURE, UNKNOWN = 99 };
+enum class StreamConfig : unsigned int {
+  PLAYBACK = SND_PCM_STREAM_PLAYBACK,
+  CAPTURE = SND_PCM_STREAM_CAPTURE,
+  UNKNOWN = 99
+};
 enum class ChannelConfig : unsigned int { MONO = 1, STEREO = 2 };
 
 struct SndPcmDeleter {
-  void operator()(snd_pcm_t *p) {
+  void operator()(snd_pcm_t* p) {
     int err = snd_pcm_close(p);
     if (err != 0) {
       std::cerr << "Could not close snd_pcm_t*, error:" << std::strerror(err) << std::endl;
@@ -55,21 +59,27 @@ struct AlsaConfig {
 
 class AlsaInterface {
 public:
-  AlsaInterface(StreamConfig streamConfig, std::string_view pcmDesc = defaultHw);
-  void captureAudio(std::ostream &outputStream);
-  void playbackAudio(std::istream &inputStream);
+  AlsaInterface(const StreamConfig streamConfig, std::string_view pcmDesc = defaultHw,
+                const AlsaConfig& alsaConfig = AlsaConfig());
+  void captureAudio(std::ostream& outputStream);
+  void playbackAudio(std::istream& inputStream);
 
 private:
-  Status configureInterface(StreamConfig streamConfig, std::string_view pcmDesc);
-  inline bool isConfiguredForPlayback() const noexcept { return streamConfig_ == StreamConfig::PLAYBACK; }
-  inline bool isConfiguredForCapture() const noexcept { return streamConfig_ == StreamConfig::CAPTURE; }
-  snd_pcm_t *openSoundDevice(std::string_view pcmDesc, StreamConfig streamConfig);
+  Status configureInterface(const StreamConfig& streamConfig, std::string_view pcmDesc,
+                            const AlsaConfig& alsaConfig = AlsaConfig());
+  inline bool isConfiguredForPlayback() const noexcept {
+    return streamConfig_ == StreamConfig::PLAYBACK;
+  }
+  inline bool isConfiguredForCapture() const noexcept {
+    return streamConfig_ == StreamConfig::CAPTURE;
+  }
+  snd_pcm_t* openSoundDevice(std::string_view pcmDesc, StreamConfig streamConfig);
   std::unique_ptr<char> inputBuffer_;
   AlsaConfig config_;
   std::shared_ptr<spdlog::logger> logger_;
 
   // Have to make params a raw pointer since the underlying type is opaque (apparently)
-  snd_pcm_hw_params_t *params_;
+  snd_pcm_hw_params_t* params_;
   StreamConfig streamConfig_;
   std::string pcmDesc_;
   std::unique_ptr<snd_pcm_t, SndPcmDeleter> pcmHandle_;

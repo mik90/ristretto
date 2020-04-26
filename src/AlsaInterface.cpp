@@ -3,9 +3,10 @@
 
 namespace mik {
 
-inline snd_pcm_t *AlsaInterface::openSoundDevice(std::string_view pcmDesc, StreamConfig streamDir) {
-  snd_pcm_t *pcmHandle = nullptr;
-  const int err = snd_pcm_open(&pcmHandle, pcmDesc.data(), static_cast<snd_pcm_stream_t>(streamDir), 0x0);
+inline snd_pcm_t* AlsaInterface::openSoundDevice(std::string_view pcmDesc, StreamConfig streamDir) {
+  snd_pcm_t* pcmHandle = nullptr;
+  const int err =
+      snd_pcm_open(&pcmHandle, pcmDesc.data(), static_cast<snd_pcm_stream_t>(streamDir), 0x0);
   if (err != 0) {
     logger_->error("Couldn't get capture handle, error:{}", std::strerror(err));
     return nullptr;
@@ -15,7 +16,8 @@ inline snd_pcm_t *AlsaInterface::openSoundDevice(std::string_view pcmDesc, Strea
   return pcmHandle;
 }
 
-Status AlsaInterface::configureInterface(StreamConfig streamConfig, std::string_view pcmDesc) {
+Status AlsaInterface::configureInterface(const StreamConfig& streamConfig, std::string_view pcmDesc,
+                                         const AlsaConfig& config) {
 
   if (pcmHandle_ && streamConfig == streamConfig_) {
     logger_->info("ALSA Interface is already configured.");
@@ -31,7 +33,7 @@ Status AlsaInterface::configureInterface(StreamConfig streamConfig, std::string_
 
   logger_->info("Allocating memory for parameters...");
   {
-    snd_pcm_hw_params_t *params = nullptr;
+    snd_pcm_hw_params_t* params = nullptr;
     snd_pcm_hw_params_alloca(&params);
     params_ = params; // Grab the pointer we got from the ALSA macro
   }
@@ -39,7 +41,8 @@ Status AlsaInterface::configureInterface(StreamConfig streamConfig, std::string_
   logger_->info("Setting sound card parameters...");
   snd_pcm_hw_params_any(pcmHandle_.get(), params_);
   snd_pcm_hw_params_set_format(pcmHandle_.get(), params_, config_.format);
-  snd_pcm_hw_params_set_channels(pcmHandle_.get(), params_, static_cast<unsigned int>(config_.channelConfig));
+  snd_pcm_hw_params_set_channels(pcmHandle_.get(), params_,
+                                 static_cast<unsigned int>(config_.channelConfig));
   snd_pcm_hw_params_set_access(pcmHandle_.get(), params_, config_.accessType);
 
   // Set sampling rate
@@ -77,17 +80,19 @@ Status AlsaInterface::configureInterface(StreamConfig streamConfig, std::string_
   size_t bufferSize = config_.frames * 4; // 2 bytes/sample, 2 channel
 
   logger_->info("Buffer size is {} bytes", bufferSize);
-  buffer_.reset(static_cast<char *>(std::malloc(bufferSize)));
+  buffer_.reset(static_cast<char*>(std::malloc(bufferSize)));
   bufferSize_ = static_cast<std::streamsize>(bufferSize);
 
   return Status::SUCCESS;
 }
 
-AlsaInterface::AlsaInterface(StreamConfig streamConfig, std::string_view pcmDesc) : pcmDesc_(pcmDesc) {
+AlsaInterface::AlsaInterface(const StreamConfig& streamConfig, std::string_view pcmDesc,
+                             const AlsaConfig& alsaConfig)
+    : pcmDesc_(pcmDesc), config_(alsaConfig) {
 
   try {
     logger_ = spdlog::basic_logger_mt("AlsaLogger", "logs/client.log", true);
-  } catch (const spdlog::spdlog_ex &e) {
+  } catch (const spdlog::spdlog_ex& e) {
     std::cerr << "Log init failed: " << e.what() << std::endl;
   }
 

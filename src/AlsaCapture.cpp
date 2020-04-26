@@ -4,7 +4,7 @@
 
 namespace mik {
 
-void AlsaInterface::captureAudio(std::ostream &outputStream) {
+void AlsaInterface::captureAudio(std::ostream& outputStream) {
 
   logger_->info("Starting capture...");
 
@@ -41,8 +41,10 @@ void AlsaInterface::captureAudio(std::ostream &outputStream) {
   }
 
   auto endTime = std::chrono::steady_clock::now();
-  const auto actualDuration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-  logger_->info("Capture was configured to take {} milliseconds, it actually took {} ms", config_.recordingTime_us / 1000, actualDuration);
+  const auto actualDuration =
+      std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+  logger_->info("Capture was configured to take {} milliseconds, it actually took {} ms",
+                config_.recordingTime_us / 1000, actualDuration);
 
   logger_->info("Capture done, running snd_pcm_drop...");
   logger_->flush();

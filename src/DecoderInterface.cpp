@@ -14,7 +14,7 @@ namespace mik {
 DecoderInterface::DecoderInterface() : ioContext_(), socket_(ioContext_) {
   try {
     logger_ = spdlog::basic_logger_mt("DecodeInterfaceLogger", "logs/client.log");
-  } catch (const spdlog::spdlog_ex &e) {
+  } catch (const spdlog::spdlog_ex& e) {
     std::cerr << "Log init failed with spdlog_ex: " << e.what() << std::endl;
   }
 
@@ -33,7 +33,7 @@ void DecoderInterface::connect(std::string_view host, std::string_view port) {
   try {
     endpoints = res.resolve(host, port);
 
-  } catch (const boost::system::system_error &e) {
+  } catch (const boost::system::system_error& e) {
     logger_->error("Error {}", e.what());
     return;
   }
@@ -44,20 +44,21 @@ void DecoderInterface::connect(std::string_view host, std::string_view port) {
     boost::asio::connect(socket_, endpoints);
     logger_->info("Connected to {}:{}", host, port);
 
-  } catch (const boost::system::system_error &e) {
+  } catch (const boost::system::system_error& e) {
     logger_->info("Caught exception on connect(): {}", e.what());
     return;
   }
 }
 
-size_t DecoderInterface::sendAudio(std::vector<AudioType> &buffer) {
+size_t DecoderInterface::sendAudio(std::vector<AudioType>& buffer) {
   logger_->debug("Writing to the socket...");
-  // TODO This should be a const_buffer, but there doesn't seem to be a vector -> const_buffer constructor
+  // TODO This should be a const_buffer, but there doesn't seem to be a vector -> const_buffer
+  // constructor
   try {
     const auto bytesWritten = boost::asio::write(socket_, boost::asio::buffer(buffer));
     logger_->debug("Wrote {} bytes of audio to the socket", bytesWritten);
     return bytesWritten;
-  } catch (const boost::system::system_error &e) {
+  } catch (const boost::system::system_error& e) {
     logger_->error("Couldn't write to socket: {}", e.what());
     return 0;
   }
@@ -69,20 +70,21 @@ std::string DecoderInterface::getResult() {
   size_t bytesRead;
   try {
     bytesRead = boost::asio::read_until(socket_, streamBuf, "\n");
-  } catch (const boost::system::system_error &e) {
+  } catch (const boost::system::system_error& e) {
     logger_->error("Got exception while reading from socket: {}", e.what());
     return "";
   }
   logger_->debug("Read in {} bytes of results");
   const auto bufIter = streamBuf.data();
-  const std::string result(boost::asio::buffers_begin(bufIter), boost::asio::buffers_begin(bufIter) + static_cast<long>(bytesRead));
+  const std::string result(boost::asio::buffers_begin(bufIter),
+                           boost::asio::buffers_begin(bufIter) + static_cast<long>(bytesRead));
   if (result.empty()) {
     logger_->error("The result from the decoder was empty");
   }
   return result;
 }
 
-std::streampos findSizeOfFileStream(std::istream &str) {
+std::streampos findSizeOfFileStream(std::istream& str) {
   const auto originalPos = str.tellg();    // Find current pos
   str.seekg(0, str.end);                   // Go back to start
   const std::streampos size = str.tellg(); // Find size
@@ -123,7 +125,7 @@ std::vector<AudioType> readInAudiofile(std::string_view filename) {
 
 } // namespace mik
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
+int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
   mik::DecoderInterface iface;
   iface.connect("127.0.0.1", "5050");

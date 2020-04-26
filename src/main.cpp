@@ -18,13 +18,13 @@ static constexpr auto Usage =
           -v --version          Show the version.
 )";
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
 
   auto args = docopt::docopt(Usage, {std::next(argv), std::next(argv, argc)},
                              true,                 // show help if requested
                              "AlsaInterface 0.1"); // version string
   fmt::print("--------\ndocopt output:\n");
-  for (auto const &arg : args) {
+  for (auto const& arg : args) {
     std::cout << arg.first << ": " << arg.second << std::endl;
   }
   fmt::print("--------\n");
@@ -34,6 +34,9 @@ int main(int argc, char **argv) {
 
   const auto outputFilename = args[std::string("<output_filename>")];
   const auto inputAudioFile = args[std::string("<input_audio_file>")];
+
+  mik::AlsaConfig config;
+  config.samplingRate_bps = 16000;
 
   mik::AlsaInterface alsa(mik::StreamConfig::PLAYBACK, mik::defaultHw);
   auto logger = spdlog::get("AlsaLogger");

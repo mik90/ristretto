@@ -3,7 +3,7 @@
 #include "AlsaInterface.hpp"
 
 namespace mik {
-void AlsaInterface::playbackAudio(std::istream &inputStream) {
+void AlsaInterface::playbackAudio(std::istream& inputStream) {
 
   logger_->info("Starting playback...");
 

@@ -13,6 +13,13 @@ void AlsaInterface::captureAudio(std::ostream& outputStream) {
   }
 
   logger_->info("Calculating amount of recording loops...");
+  logger_->info("Recording duration is {} microseconds ({} seconds as integer division)",
+                config_.recordingDuration_us,
+                AlsaConfig::microsecondsToSeconds(config_.recordingDuration_us));
+  logger_->info("Recording period is {} microseconds ({} seconds as integer division)",
+                config_.recordingPeriod_us,
+                AlsaConfig::microsecondsToSeconds(config_.recordingPeriod_us));
+
   int loopsLeft = config_.calculateRecordingLoops();
 
   auto startTime = std::chrono::steady_clock::now();
@@ -43,31 +50,11 @@ void AlsaInterface::captureAudio(std::ostream& outputStream) {
   auto endTime = std::chrono::steady_clock::now();
   const auto actualDuration =
       std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-  logger_->info("Capture was configured to take {} milliseconds, it actually took {} ms",
-                config_.recordingDuration_us / 1000, actualDuration);
+  logger_->debug("Capture was configured to take {} milliseconds, it actually took {} ms",
+                 config_.recordingDuration_us / 1000, actualDuration);
 
-  logger_->info("Capture done, running snd_pcm_drop...");
-  logger_->flush();
-  const auto status = snd_pcm_drop(pcmHandle_.get());
-  if (status != 0) {
-    logger_->error("snd_pcm_drop failed with error: {}", std::strerror(status));
-  }
-  logger_->info("Drop done.");
-
-  /*
-  logger_->info("Capture done, running snd_pcm_drain...");
-  logger_->flush(); // it may hang on drain
-  const auto status = snd_pcm_drain(pcmHandle_.get());
-  if (status == -ESTRPIPE) {
-      logger_->error("snd_pcm_drain was suspended during drain");
-  }
-  else if (status != 0) {
-      logger_->error("snd_pcm_drain failed with error: {}",
-  std::strerror(status));
-  }
-  logger_->info("Drain done.");
-  */
-
+  snd_pcm_drop(pcmHandle_.get());
+  logger_->info("Finished audio capture");
   return;
 }
 

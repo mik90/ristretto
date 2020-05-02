@@ -86,10 +86,9 @@ public:
                 const AlsaConfig& alsaConfig = AlsaConfig());
   void captureAudio(std::ostream& outputStream);
   void playbackAudio(std::istream& inputStream);
-
+  // TODO Implemenet some way to update the configuration of an already-running AlsaInterface
 private:
-  Status configureInterface(const StreamConfig& streamConfig, std::string_view pcmDesc,
-                            const AlsaConfig& alsaConfig = AlsaConfig());
+  Status configureInterface(const StreamConfig& streamConfig, std::string_view pcmDesc);
   inline bool isConfiguredForPlayback() const noexcept {
     return streamConfig_ == StreamConfig::PLAYBACK;
   }

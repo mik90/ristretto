@@ -16,15 +16,14 @@ inline snd_pcm_t* AlsaInterface::openSoundDevice(std::string_view pcmDesc, Strea
   return pcmHandle;
 }
 
-Status AlsaInterface::configureInterface(const StreamConfig& streamConfig, std::string_view pcmDesc,
-                                         const AlsaConfig& config) {
-
-  if (pcmHandle_ && streamConfig == streamConfig_ && config == config_) {
+Status AlsaInterface::configureInterface(const StreamConfig& streamConfig,
+                                         std::string_view pcmDesc) {
+  logger_->info("Configuring interface...");
+  if (pcmHandle_ && streamConfig == streamConfig_) {
     logger_->info("ALSA Interface is already configured.");
     return Status::SUCCESS;
   }
-  // Update our internal config to the new one
-  config_ = config;
+  logger_->info("Reconfiguring interface");
 
   // Reference: https://www.linuxjournal.com/article/6735
   pcmHandle_.reset(openSoundDevice(pcmDesc, streamConfig));
@@ -96,9 +95,11 @@ AlsaInterface::AlsaInterface(const StreamConfig& streamConfig, std::string_view 
   if (spdlog::get("AlsaLogger")) {
     // The logger exists already
     logger_ = spdlog::get("AlsaLogger");
+    logger_->set_level(spdlog::level::debug);
   } else {
     try {
       logger_ = spdlog::basic_logger_mt("AlsaLogger", "logs/client.log", true);
+      logger_->set_level(spdlog::level::debug);
     } catch (const spdlog::spdlog_ex& e) {
       std::cerr << "Log init failed: " << e.what() << std::endl;
     }

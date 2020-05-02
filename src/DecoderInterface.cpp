@@ -92,7 +92,7 @@ std::streampos findSizeOfFileStream(std::istream& str) {
   return size;
 }
 
-std::vector<AudioType> readInAudiofile(std::string_view filename) {
+std::vector<AudioType> Utils::readInAudiofile(std::string_view filename) {
 
   auto logger = spdlog::get("DecodeInterfaceLogger");
 
@@ -124,26 +124,3 @@ std::vector<AudioType> readInAudiofile(std::string_view filename) {
 }
 
 } // namespace mik
-
-int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
-
-  mik::DecoderInterface iface;
-  iface.connect("127.0.0.1", "5050");
-  fmt::print("Connected.\n");
-
-  auto audioData = mik::readInAudiofile("audio.raw");
-  if (audioData.empty()) {
-    fmt::print("Audiofile was empty.\n");
-    return -1;
-  }
-  iface.sendAudio(audioData);
-
-  const auto result = iface.getResult();
-  if (result.empty()) {
-    fmt::print("Result was empty.");
-    return -1;
-  }
-  fmt::print("Result: {}", result);
-
-  return 0;
-}

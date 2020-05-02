@@ -44,7 +44,7 @@ void AlsaInterface::captureAudio(std::ostream& outputStream) {
   const auto actualDuration =
       std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
   logger_->info("Capture was configured to take {} milliseconds, it actually took {} ms",
-                config_.recordingTime_us / 1000, actualDuration);
+                config_.recordingDuration_us / 1000, actualDuration);
 
   logger_->info("Capture done, running snd_pcm_drop...");
   logger_->flush();

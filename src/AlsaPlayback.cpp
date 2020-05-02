@@ -3,7 +3,8 @@
 #include "AlsaInterface.hpp"
 
 namespace mik {
-void AlsaInterface::playbackAudio(std::istream& inputStream) {
+void AlsaInterface::playbackAudio(std::istream& inputStream)
+{
 
   logger_->info("Starting playback...");
 
@@ -34,7 +35,8 @@ void AlsaInterface::playbackAudio(std::istream& inputStream) {
     if (bytesRead == 0) {
       logger_->error("Hit unexpected EOF on audio input");
       break;
-    } else if (bytesRead != bufferSize_) {
+    }
+    else if (bytesRead != bufferSize_) {
       logger_->error("Short read: should've read {} bytes, only read {}", bufferSize_, bytesRead);
     }
 
@@ -46,14 +48,17 @@ void AlsaInterface::playbackAudio(std::istream& inputStream) {
       snd_pcm_prepare(pcmHandle_.get());
       snd_pcm_start(pcmHandle_.get());
       continue;
-    } else if (status == -ESTRPIPE) {
+    }
+    else if (status == -ESTRPIPE) {
       // Overran the buffer
       logger_->error("Received ESTRPIPE (Stream is suspended)e");
       break;
-    } else if (status < 0) {
+    }
+    else if (status < 0) {
       logger_->error("Error reading from pcm. errno:{}", std::strerror(static_cast<int>(status)));
       break;
-    } else if (status != static_cast<int>(config_.frames)) {
+    }
+    else if (status != static_cast<int>(config_.frames)) {
       logger_->error("Should've written {} frames, only wrote {}.", config_.frames, status);
       logger_->info("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
       snd_pcm_prepare(pcmHandle_.get());

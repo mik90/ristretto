@@ -30,4 +30,9 @@ private:
   boost::asio::ip::tcp::socket socket_;
 };
 
+class Utils {
+public:
+  static std::vector<AudioType> readInAudiofile(std::string_view filename);
+};
+
 } // namespace mik

@@ -46,7 +46,7 @@ struct SndPcmDeleter {
 
 struct AlsaConfig {
   unsigned int samplingRate_bps = 44100;
-  unsigned int recordingTime_us = 5000000;
+  unsigned int recordingDuration_us = 5000000;
   unsigned int recordingPeriod_us = 735;
 
   snd_pcm_uframes_t frames = 32;
@@ -54,11 +54,25 @@ struct AlsaConfig {
   snd_pcm_access_t accessType = SND_PCM_ACCESS_RW_INTERLEAVED;
   ChannelConfig channelConfig = ChannelConfig::STEREO; // Stereo
 
-  int calculateRecordingLoops() { return static_cast<int>(recordingTime_us / recordingPeriod_us); }
+  static unsigned int microsecondsToSeconds(unsigned int microseconds) {
+    return static_cast<unsigned int>(
+        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::microseconds(microseconds))
+            .count());
+  };
+  static unsigned int secondsToMicroseconds(unsigned int seconds) {
+    return static_cast<unsigned int>(
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds(seconds))
+            .count());
+  };
+
+  int calculateRecordingLoops() {
+    return static_cast<int>(recordingDuration_us / recordingPeriod_us);
+  }
 
   // Isn't there a way to automatically generate this?
   inline bool operator==(const AlsaConfig& rhs) const noexcept {
-    return samplingRate_bps == rhs.samplingRate_bps && recordingTime_us == rhs.recordingTime_us &&
+    return samplingRate_bps == rhs.samplingRate_bps &&
+           recordingDuration_us == rhs.recordingDuration_us &&
            recordingPeriod_us == rhs.recordingPeriod_us && frames == rhs.frames &&
            format == rhs.format && accessType == rhs.accessType &&
            channelConfig == rhs.channelConfig;

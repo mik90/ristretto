@@ -52,6 +52,7 @@ Status AlsaInterface::configureInterface(const StreamConfig& streamConfig, std::
   unsigned int val = config_.samplingRate_bps;
   logger_->info("Attempting to get a sampling rate of {} bits per second", val);
   snd_pcm_hw_params_set_rate_near(pcmHandle_.get(), params_, &val, &dir);
+  // Check what rate we actually got
   logger_->info("Got a sampling rate of {} bits per second", val);
 
   // Set period size to X frames
@@ -67,7 +68,7 @@ Status AlsaInterface::configureInterface(const StreamConfig& streamConfig, std::
     return Status::ERROR;
   }
 
-  // Create a buffer to hold a period
+  // Check how many frames we actually got
   snd_pcm_hw_params_get_period_size(params_, &(config_.frames), &dir);
   logger_->info("Retrieved period size of {} frames", config_.frames);
 
@@ -92,10 +93,15 @@ AlsaInterface::AlsaInterface(const StreamConfig& streamConfig, std::string_view 
                              const AlsaConfig& alsaConfig)
     : config_(alsaConfig), pcmDesc_(pcmDesc) {
 
-  try {
-    logger_ = spdlog::basic_logger_mt("AlsaLogger", "logs/client.log", true);
-  } catch (const spdlog::spdlog_ex& e) {
-    std::cerr << "Log init failed: " << e.what() << std::endl;
+  if (spdlog::get("AlsaLogger")) {
+    // The logger exists already
+    logger_ = spdlog::get("AlsaLogger");
+  } else {
+    try {
+      logger_ = spdlog::basic_logger_mt("AlsaLogger", "logs/client.log", true);
+    } catch (const spdlog::spdlog_ex& e) {
+      std::cerr << "Log init failed: " << e.what() << std::endl;
+    }
   }
 
   logger_->info("Initialized logger");

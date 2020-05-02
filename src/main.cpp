@@ -36,7 +36,6 @@ int main(int argc, char** argv) {
   const auto inputAudioFile = args[std::string("<input_audio_file>")];
 
   mik::AlsaConfig config;
-  config.samplingRate_bps = 16000;
 
   mik::AlsaInterface alsa(mik::StreamConfig::PLAYBACK, mik::defaultHw);
   auto logger = spdlog::get("AlsaLogger");

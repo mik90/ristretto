@@ -56,13 +56,13 @@ endif()
 include(cmake/Conan.cmake)
 run_conan()
 
-set(ENABLE_TESTING NO)
+set(ENABLE_TESTING YES)
 set(ENABLE_FUZZING NO)
 
 if(ENABLE_TESTING)
   enable_testing()
   message(
-    "Building Tests. Be sure to check out test/constexpr_tests for constexpr testing"
+    "Building tests..."
   )
   add_subdirectory(test)
 endif()

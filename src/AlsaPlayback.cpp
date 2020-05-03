@@ -4,10 +4,10 @@
 
 namespace mik {
 void AlsaInterface::playbackAudio(std::istream& inputStream) {
-
   logger_->info("Starting playback...");
 
-  if (this->isConfiguredForPlayback()) {
+  if (!this->isConfiguredForPlayback()) {
+    logger_->debug("Interface was not configured for audio playback! Re-configuring...");
     this->configureInterface(StreamConfig::PLAYBACK, pcmDesc_);
   }
 

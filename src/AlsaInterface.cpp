@@ -4,6 +4,7 @@
 namespace mik {
 
 inline snd_pcm_t* AlsaInterface::openSoundDevice(std::string_view pcmDesc, StreamConfig streamDir) {
+
   snd_pcm_t* pcmHandle = nullptr;
   const int err =
       snd_pcm_open(&pcmHandle, pcmDesc.data(), static_cast<snd_pcm_stream_t>(streamDir), 0x0);

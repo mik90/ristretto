@@ -10,6 +10,18 @@ namespace mik {
 
 Recorder::~Recorder() { stopRecording(); }
 
+std::vector<AudioType> Recorder::consumeAudioChunk() {
+  if (audioChunks_.empty()) {
+    logger_->info("No chunks left to consume, returning an empty chunk");
+    return {};
+  }
+
+  logger_->info("Consuming oldest audio chunk out of {} chunks", audioChunks_.size());
+  const auto frontChunk = audioChunks_.front();
+  audioChunks_.pop_front();
+  return frontChunk;
+}
+
 void Recorder::stopRecording() {
   shouldRecord_ = false;
   if (recordingThread_.joinable()) {
@@ -38,6 +50,7 @@ void Recorder::startRecording() {
 }
 
 void Recorder::recordingThread() {
+  logger_->debug("recordingThread: start");
   while (shouldRecord_) {
     std::vector<AudioType> audioBuffer;
     audioBuffer.reserve(audioChunkSize_);
@@ -60,11 +73,13 @@ void Recorder::recordingThread() {
     }
 
     {
-      // Access the shared list
+      // Access the shared list, add this chunk of audio to it
       std::scoped_lock<std::mutex> lock(audioChunkMutex_);
-      audioChunks_.push_back(std::move(audioBuffer));
+      audioChunks_.emplace_back(std::move(audioBuffer));
     }
   }
+
+  logger_->debug("recordingThread: end");
 }
 
 // Capture audio until user exits

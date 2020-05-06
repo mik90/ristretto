@@ -15,7 +15,7 @@ namespace mik {
 // Given a stream of audio, send it over TCP
 
 // aka snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-using AudioType = char;
+using AudioType = uint8_t;
 
 class DecoderInterface {
 public:

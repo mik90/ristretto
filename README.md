@@ -1,12 +1,16 @@
 This is a frontend for a kaldi TCP server
 should just read in audio from ALSA, then feed it to a server
 
-Currently reaching an error upon connect:
-    - ERROR (online2-tcp-nnet3-decode-faster[5.5.0~1-e5a5]:DecodableNnetLoopedOnlineBase():decodable-online-looped.cc:46) Input feature dimension mismatch: got 13 but network expects 40
-    - This happens when it loads the fst
-- https://kaldi-asr.org/doc/online_decoding.html
-
 ## TODO
+- Buffer audio
+- Check for accuracy of decoding, currently see issues
+
+### General Notes
+- Move all the configuration into AlsaConfig
+- Setup CLI interface for recording 
+
+
+#### Kaldi server side
 - Download aspire chain model with HCLG already compiled
     - my computer doesn't have enough RAM to train the nnet3 t_dnn for librispeech :(
     - It fails when converting a 4-gram arpa to the ConstArpaLm format

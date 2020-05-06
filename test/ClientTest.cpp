@@ -9,12 +9,23 @@
 
 // Note: Logic currently expects the test audio files to be in the current directory
 
+TEST(ClientTest, CaptureAudioInBuffer) {
+
+  mik::AlsaConfig config;
+  config.recordingDuration_us = mik::AlsaConfig::secondsToMicroseconds(2);
+  mik::AlsaInterface alsa(config);
+
+  const auto audio = alsa.captureAudioUntilUserExit();
+
+  ASSERT_GT(audio.size(), 0);
+}
+
 TEST(ClientTest, CaptureAudioToFile) {
 
   const std::string outputAudio = "unittestCapture.raw";
   mik::AlsaConfig config;
   config.recordingDuration_us = mik::AlsaConfig::secondsToMicroseconds(2);
-  mik::AlsaInterface alsa(mik::StreamConfig::CAPTURE, mik::defaultHw, config);
+  mik::AlsaInterface alsa(config);
 
   std::fstream outputStream(outputAudio, outputStream.trunc | outputStream.out);
   ASSERT_TRUE(outputStream.is_open());
@@ -31,7 +42,7 @@ TEST(ClientTest, PlaybackAudioFromFile) {
   const std::string inputAudio = "unittestPlayback.raw";
   mik::AlsaConfig config;
   config.recordingDuration_us = mik::AlsaConfig::secondsToMicroseconds(1);
-  mik::AlsaInterface alsa(mik::StreamConfig::PLAYBACK, mik::defaultHw, config);
+  mik::AlsaInterface alsa(config);
 
   std::fstream inputStream(inputAudio, inputStream.in);
   ASSERT_TRUE(inputStream.is_open());

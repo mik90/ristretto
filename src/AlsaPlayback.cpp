@@ -8,7 +8,9 @@ void AlsaInterface::playbackAudio(std::istream& inputStream) {
 
   if (!this->isConfiguredForPlayback()) {
     logger_->debug("Interface was not configured for audio playback! Re-configuring...");
-    this->configureInterface(StreamConfig::PLAYBACK, pcmDesc_);
+    config_.streamConfig = StreamConfig::PLAYBACK;
+    // Re-configure the interface with the new config
+    this->configureInterface();
   }
 
   logger_->info("Calculating amount of recording loops...");

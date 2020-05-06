@@ -35,9 +35,9 @@ int main(int argc, char** argv) {
   const auto outputFilename = args[std::string("<output_filename>")];
   const auto inputAudioFile = args[std::string("<input_audio_file>")];
 
+  // Use the default config
   mik::AlsaConfig config;
-
-  mik::AlsaInterface alsa(mik::StreamConfig::PLAYBACK, mik::defaultHw);
+  mik::AlsaInterface alsa(config);
   auto logger = spdlog::get("AlsaLogger");
 
   if (capture && outputFilename) {

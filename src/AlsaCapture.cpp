@@ -5,22 +5,9 @@
 #include <vector>
 
 #include "AlsaInterface.hpp"
+#include "Recorder.hpp"
 
 namespace mik {
-
-Recorder::~Recorder() { stopRecording(); }
-
-std::vector<AudioType> Recorder::consumeAudioChunk() {
-  if (audioChunks_.empty()) {
-    logger_->info("No chunks left to consume, returning an empty chunk");
-    return {};
-  }
-
-  logger_->info("Consuming oldest audio chunk out of {} chunks", audioChunks_.size());
-  const auto frontChunk = audioChunks_.front();
-  audioChunks_.pop_front();
-  return frontChunk;
-}
 
 void Recorder::stopRecording() {
   shouldRecord_ = false;
@@ -45,29 +32,28 @@ std::unique_ptr<snd_pcm_t, SndPcmDeleter> Recorder::takePcmHandle() {
 void Recorder::startRecording() {
   // Create the thread objec which will start off the recording
   shouldRecord_ = true;
-  recordingThread_ = std::thread(&Recorder::recordingThread, this);
+  recordingThread_ = std::thread(&Recorder::record, this);
   logger_->info("Recording started.");
 }
 
-void Recorder::recordingThread() {
-  logger_->debug("recordingThread: start");
+void Recorder::record() {
+  logger_->debug("record: start");
   while (shouldRecord_) {
-    std::vector<AudioType> audioBuffer;
-    audioBuffer.reserve(audioChunkSize_);
+    std::vector<AudioType> audioChunk;
+    audioChunk.reserve(audioChunkSize_);
 
-    const auto status = snd_pcm_readi(pcmHandle_.get(), audioBuffer.data(), config_.frames);
+    const auto status = snd_pcm_readi(pcmHandle_.get(), audioChunk.data(), config_.frames);
     if (status == -EPIPE) {
       // Overran the buffer
-      logger_->error("recordingThread: Overran buffer, received EPIPE. Will continue");
+      logger_->error("recording: Overran buffer, received EPIPE. Will continue");
       snd_pcm_prepare(pcmHandle_.get());
       continue;
     } else if (status < 0) {
-      logger_->error("recordingThread: Error reading from pcm. errno:{}",
+      logger_->error("recording: Error reading from pcm. errno:{}",
                      std::strerror(static_cast<int>(status)));
       return;
     } else if (status != static_cast<int>(config_.frames)) {
-      logger_->error("recordingThread: Should've read {} frames, only read {}.", config_.frames,
-                     status);
+      logger_->error("recording: Should've read {} frames, only read {}.", config_.frames, status);
       snd_pcm_prepare(pcmHandle_.get());
       continue;
     }
@@ -75,7 +61,9 @@ void Recorder::recordingThread() {
     {
       // Access the shared list, add this chunk of audio to it
       std::scoped_lock<std::mutex> lock(audioChunkMutex_);
-      audioChunks_.emplace_back(std::move(audioBuffer));
+      audioData_.reserve(audioData_.size() + audioChunk.size());
+      // Insert this chunk to the internal audioData_
+      std::move(std::begin(audioChunk), std::end(audioChunk), std::back_inserter(audioData_));
     }
   }
 
@@ -83,16 +71,41 @@ void Recorder::recordingThread() {
 }
 
 // Capture audio until user exits
-void AlsaInterface::captureAudioUntilUserExit() {
+std::vector<AudioType> AlsaInterface::captureAudioUntilUserExit() {
   logger_->info("Starting capture until user exits...");
 
   // Capture audio until user presses a key
   if (!this->isConfiguredForCapture()) {
     logger_->debug("Interface was not configured for audio capture! Re-configuring...");
-    this->configureInterface(StreamConfig::CAPTURE, pcmDesc_);
+    config_.streamConfig = StreamConfig::CAPTURE;
+    // Re-configure the interface with the new config
+    this->configureInterface();
   }
 
-  // Need to have an input thread and a recording thread
+  // The recorder should take ownership of the device handle
+  Recorder rec(std::move(pcmHandle_), config_);
+
+  const auto start = std::chrono::steady_clock::now();
+  fmt::print("Starting recording...\n");
+  rec.startRecording();
+
+  fmt::print("Press <ENTER> to stop recording\n");
+  [[maybe_unused]] std::string input;
+  std::getline(std::cin, input);
+
+  rec.stopRecording();
+
+  const auto end = std::chrono::steady_clock::now();
+  const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  const auto secondsAsFraction = static_cast<double>(duration.count()) / 1000.0;
+  const auto audio = rec.getAudioData();
+  fmt::print("Recording stopped, received {} seconds of audio totalling {} bytes\n",
+             secondsAsFraction, audio.size());
+
+  // Recorder was only a local so take the handle back
+  pcmHandle_ = rec.takePcmHandle();
+
+  return audio;
 }
 
 // Capture fixed duration of audio
@@ -101,7 +114,9 @@ void AlsaInterface::captureAudio(std::ostream& outputStream) {
 
   if (!this->isConfiguredForCapture()) {
     logger_->debug("Interface was not configured for audio capture! Re-configuring...");
-    this->configureInterface(StreamConfig::CAPTURE, pcmDesc_);
+    config_.streamConfig = StreamConfig::CAPTURE;
+    // Re-configure the interface with the new config
+    this->configureInterface();
   }
 
   logger_->info("Calculating amount of recording loops...");

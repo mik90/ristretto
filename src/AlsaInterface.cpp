@@ -1,9 +1,10 @@
-
 #include "AlsaInterface.hpp"
 
 namespace mik {
 
-inline snd_pcm_t* AlsaInterface::openSoundDevice(std::string_view pcmDesc, StreamConfig streamDir) {
+// Note: this should be static but then I'd have to make the logger pointer static or have to
+// write code to for this function to get it
+snd_pcm_t* AlsaInterface::openSoundDevice(std::string_view pcmDesc, StreamConfig streamDir) {
 
   snd_pcm_t* pcmHandle = nullptr;
   const int err =
@@ -17,19 +18,18 @@ inline snd_pcm_t* AlsaInterface::openSoundDevice(std::string_view pcmDesc, Strea
   return pcmHandle;
 }
 
-Status AlsaInterface::configureInterface(const StreamConfig& streamConfig,
-                                         std::string_view pcmDesc) {
+Status AlsaInterface::updateConfiguration(const AlsaConfig& config) {
+  config_ = config;
+  return this->configureInterface();
+}
+
+Status AlsaInterface::configureInterface() {
   logger_->info("Configuring interface...");
-  if (pcmHandle_ && streamConfig == streamConfig_) {
-    logger_->info("ALSA Interface is already configured.");
-    return Status::SUCCESS;
-  }
-  logger_->info("Reconfiguring interface");
 
   // Reference: https://www.linuxjournal.com/article/6735
-  pcmHandle_.reset(openSoundDevice(pcmDesc, streamConfig));
+  pcmHandle_.reset(this->openSoundDevice(config_.pcmDesc, config_.streamConfig));
   if (!pcmHandle_) {
-    logger_->error("Could not get handle for the capture device: {}.", pcmDesc);
+    logger_->error("Could not get handle for the capture device: {}.", config_.pcmDesc);
     return Status::ERROR;
   }
 
@@ -89,9 +89,7 @@ Status AlsaInterface::configureInterface(const StreamConfig& streamConfig,
   return Status::SUCCESS;
 }
 
-AlsaInterface::AlsaInterface(const StreamConfig& streamConfig, std::string_view pcmDesc,
-                             const AlsaConfig& alsaConfig)
-    : config_(alsaConfig), pcmDesc_(pcmDesc) {
+AlsaInterface::AlsaInterface(const AlsaConfig& alsaConfig) : config_(alsaConfig) {
 
   if (spdlog::get("AlsaLogger")) {
     // The logger exists already
@@ -109,7 +107,7 @@ AlsaInterface::AlsaInterface(const StreamConfig& streamConfig, std::string_view 
   logger_->info("Initialized logger");
 
   logger_->info("Configuring interface...");
-  if (this->configureInterface(streamConfig, pcmDesc) == Status::SUCCESS) {
+  if (this->configureInterface() == Status::SUCCESS) {
     logger_->info("Configured interface successfully");
   } else {
     logger_->error("Could not configure AlsaInterface");

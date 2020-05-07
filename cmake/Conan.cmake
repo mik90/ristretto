@@ -18,7 +18,7 @@ conan_cmake_run(
   ${CONAN_EXTRA_REQUIRES}
   gtest/1.10.0
   docopt.cpp/0.6.2
-  fmt/6.1.2
+  fmt/6.2.0
   spdlog/1.5.0
   boost/1.71.0
   abseil/20200205

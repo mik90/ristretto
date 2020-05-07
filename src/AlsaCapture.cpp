@@ -105,7 +105,8 @@ std::vector<AudioType> AlsaInterface::captureAudioUntilUserExit() {
   const auto secondsAsFraction = static_cast<double>(duration.count()) / 1000.0;
   const auto audio = rec.getAudioData();
   const auto infoMsg =
-      fmt::format("Recording stopped, received {} seconds of audio totalling {} bytes",
+      fmt::format(std::locale("en_US.UTF-8"),
+                  "Recording stopped, received {} seconds of audio totalling {:L} bytes",
                   secondsAsFraction, audio.size());
   logger_->debug(infoMsg);
   fmt::print("{}\n", infoMsg);

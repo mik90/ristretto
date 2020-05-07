@@ -4,6 +4,8 @@
 #include <utility>
 #include <vector>
 
+#include <fmt/locale.h>
+
 #include "AlsaInterface.hpp"
 #include "Recorder.hpp"
 
@@ -37,37 +39,40 @@ void Recorder::startRecording() {
 }
 
 void Recorder::record() {
-  logger_->debug("record: start");
-  while (shouldRecord_) {
-    std::vector<AudioType> audioChunk;
-    audioChunk.reserve(audioChunkSize_);
+  logger_->debug("record(): start");
 
-    const auto status = snd_pcm_readi(pcmHandle_.get(), audioChunk.data(), config_.frames);
+  // Allocate a chunk of data for the buffer and wrap it in a unique_ptr
+  auto cBuffer = std::make_unique<AudioType[]>(audioChunkSize_);
+
+  while (shouldRecord_) {
+
+    // Read data from the sound card into audioChunk
+    const auto status = snd_pcm_readi(pcmHandle_.get(), cBuffer.get(), config_.frames);
     if (status == -EPIPE) {
       // Overran the buffer
-      logger_->error("recording: Overran buffer, received EPIPE. Will continue");
+      logger_->error("record(): Overran buffer, received EPIPE. Will continue");
       snd_pcm_prepare(pcmHandle_.get());
       continue;
     } else if (status < 0) {
-      logger_->error("recording: Error reading from pcm. errno:{}",
+      logger_->error("record(): Error reading from pcm. errno:{}",
                      std::strerror(static_cast<int>(status)));
       return;
     } else if (status != static_cast<int>(config_.frames)) {
-      logger_->error("recording: Should've read {} frames, only read {}.", config_.frames, status);
+      logger_->error("record(): Should've read {} frames, only read {}.", config_.frames, status);
       snd_pcm_prepare(pcmHandle_.get());
       continue;
     }
 
     {
-      // Access the shared list, add this chunk of audio to it
+      // Access the container that holds all the auido data, add this chunk of audio to it
       std::scoped_lock<std::mutex> lock(audioChunkMutex_);
-      audioData_.reserve(audioData_.size() + audioChunk.size());
-      // Insert this chunk to the internal audioData_
-      std::move(std::begin(audioChunk), std::end(audioChunk), std::back_inserter(audioData_));
+
+      // Pointer arithmetic, messy but i want to move the data from the C-style array into audioData
+      std::move(cBuffer.get(), cBuffer.get() + audioChunkSize_, std::back_inserter(audioData_));
     }
   }
 
-  logger_->debug("recordingThread: end");
+  logger_->debug("record(): end");
 }
 
 // Capture audio until user exits
@@ -99,8 +104,11 @@ std::vector<AudioType> AlsaInterface::captureAudioUntilUserExit() {
   const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   const auto secondsAsFraction = static_cast<double>(duration.count()) / 1000.0;
   const auto audio = rec.getAudioData();
-  fmt::print("Recording stopped, received {} seconds of audio totalling {} bytes\n",
-             secondsAsFraction, audio.size());
+  const auto infoMsg =
+      fmt::format("Recording stopped, received {} seconds of audio totalling {} bytes",
+                  secondsAsFraction, audio.size());
+  logger_->debug(infoMsg);
+  fmt::print("{}\n", infoMsg);
 
   // Recorder was only a local so take the handle back
   pcmHandle_ = rec.takePcmHandle();

@@ -2,12 +2,7 @@ This is a frontend for a kaldi TCP server
 should just read in audio from ALSA, then feed it to a server
 
 ## TODO
-- Buffer audio
-- Check for accuracy of decoding, currently see issues
-
-### General Notes
-- Move all the configuration into AlsaConfig
-- Setup CLI interface for recording 
+- Check for accuracy of decoding, currently get inaccurate decoding. Might've been audio quality in testing.
 
 
 #### Kaldi server side

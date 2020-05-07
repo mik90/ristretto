@@ -2,11 +2,9 @@
 
 namespace mik {
 
-// Note: this should be static but then I'd have to make the logger pointer static or have to
-// write code to for this function to get it
 snd_pcm_t* AlsaInterface::openSoundDevice(std::string_view pcmDesc, StreamConfig streamDir) {
-
   snd_pcm_t* pcmHandle = nullptr;
+
   const int err =
       snd_pcm_open(&pcmHandle, pcmDesc.data(), static_cast<snd_pcm_stream_t>(streamDir), 0x0);
   if (err != 0) {
@@ -80,11 +78,9 @@ Status AlsaInterface::configureInterface() {
   }
   logger_->info("Retrieved recording period of {} ms", config_.recordingPeriod_us);
 
-  size_t bufferSize = config_.frames * 4; // 2 bytes/sample, 2 channel
+  audioChunkSize_ = config_.frames * 4; // 2 bytes/sample, 2 channel
 
-  logger_->info("Buffer size is {} bytes", bufferSize);
-  buffer_.reset(static_cast<char*>(std::malloc(bufferSize)));
-  bufferSize_ = static_cast<std::streamsize>(bufferSize);
+  logger_->info("Audio chunk size is {} bytes", audioChunkSize_);
 
   return Status::SUCCESS;
 }
@@ -116,7 +112,12 @@ AlsaInterface::AlsaInterface(const AlsaConfig& alsaConfig) : config_(alsaConfig)
 
   logger_->info("Finished AlsaInterface construction");
   logger_->info("");
-  logger_->flush();
+}
+
+AlsaInterface::~AlsaInterface() {
+  logger_->info("Destroying AlsaInterface...");
+  this->stopRecording();
+  logger_->info("Done destroying AlsaInterface");
 }
 
 } // namespace mik

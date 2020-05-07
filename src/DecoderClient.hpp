@@ -7,22 +7,20 @@
 #include <string_view>
 #include <vector>
 
+#include "AlsaInterface.hpp"
+
 constexpr long MaxLength = 65535;
 
 namespace mik {
 // Used for sending audio to the Kaldi online2-tcp-nnet3-decode-faster server
-
 // Given a stream of audio, send it over TCP
 
-// aka snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-using AudioType = uint8_t;
-
-class DecoderInterface {
+class DecoderClient {
 public:
-  DecoderInterface();
+  DecoderClient();
   void connect(std::string_view host, std::string_view port);
-  size_t sendAudio(std::vector<AudioType>& buffer);
-  std::string getResult();
+  size_t sendAudioToServer(const std::vector<uint8_t>& buffer);
+  std::string getResultFromServer();
 
 private:
   std::shared_ptr<spdlog::logger> logger_;
@@ -32,7 +30,7 @@ private:
 
 class Utils {
 public:
-  static std::vector<AudioType> readInAudiofile(std::string_view filename);
+  static std::vector<uint8_t> readInAudiofile(std::string_view filename);
 };
 
 } // namespace mik

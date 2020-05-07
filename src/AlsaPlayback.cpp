@@ -24,23 +24,25 @@ void AlsaInterface::playbackAudio(std::istream& inputStream) {
     return;
   }
 
+  auto cBuffer = std::make_unique<char[]>(audioChunkSize_);
   logger_->info("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
 
   while (loopsLeft > 0) {
     --loopsLeft;
 
-    // Read in bufferSize amount of bytes from the audio file into the buffer
-    inputStream.read(buffer_.get(), bufferSize_);
+    // Read in audioChunkSize_ amount of bytes from the audio file into the buffer
+    inputStream.read(cBuffer.get(), static_cast<std::streamsize>(audioChunkSize_));
     const auto bytesRead = inputStream.gcount();
     if (bytesRead == 0) {
       logger_->error("Hit unexpected EOF on audio input");
       break;
-    } else if (bytesRead != bufferSize_) {
-      logger_->error("Short read: should've read {} bytes, only read {}", bufferSize_, bytesRead);
+    } else if (bytesRead != static_cast<std::streamsize>(audioChunkSize_)) {
+      logger_->error("Short read: should've read {} bytes, only read {}", audioChunkSize_,
+                     bytesRead);
     }
 
     // Write out a frame of data from the buffer into the soundcard
-    const auto status = snd_pcm_writei(pcmHandle_.get(), buffer_.get(), config_.frames);
+    const auto status = snd_pcm_writei(pcmHandle_.get(), cBuffer.get(), config_.frames);
     if (status == -EPIPE) {
       // Overran the buffer
       logger_->error("Underrun occured, received EPIPE. Will continue");

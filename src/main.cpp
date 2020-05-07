@@ -2,6 +2,9 @@
 #include <fmt/core.h>
 #include <spdlog/spdlog.h>
 
+#include <fstream>
+#include <iostream>
+
 #include "AlsaInterface.hpp"
 
 static constexpr auto Usage =

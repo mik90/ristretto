@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <thread>
 
 // This is the consumer-facing header
 
@@ -18,7 +19,7 @@ constexpr std::string_view intelPch("hw:PCH");
 constexpr std::string_view speechMike("hw:III");
 
 // Was unsure if this needed to be signed or unsigned, just making it easy to switch
-using AudioType = uint8_t;
+using uint8_t = uint8_t;
 
 enum class Status { SUCCESS, ERROR };
 
@@ -81,29 +82,46 @@ struct AlsaConfig {
 class AlsaInterface {
 public:
   AlsaInterface(const AlsaConfig& alsaConfig);
-  void captureAudio(std::ostream& outputStream);
-  std::vector<AudioType> captureAudioUntilUserExit();
-  void playbackAudio(std::istream& inputStream);
+  ~AlsaInterface();
 
-private:
-  Status configureInterface();
+  void captureAudio(std::ostream& outputStream);
+  std::vector<uint8_t> captureAudioUntilUserExit();
+  void playbackAudio(std::istream& inputStream);
   Status updateConfiguration(const AlsaConfig& alsaConfig);
+
+  Status configureInterface();
+  const AlsaConfig& getConfiguration() { return config_; }
   inline bool isConfiguredForPlayback() const noexcept {
     return config_.streamConfig == StreamConfig::PLAYBACK;
   }
   inline bool isConfiguredForCapture() const noexcept {
     return config_.streamConfig == StreamConfig::CAPTURE;
   }
+  std::unique_ptr<snd_pcm_t, SndPcmDeleter> takePcmHandle() {
+    return std::exchange(pcmHandle_, nullptr);
+  }
+  void stopRecording();
+  void startRecording();
+  std::vector<uint8_t> getAudioData() { return audioData_; }
+
+private:
   snd_pcm_t* openSoundDevice(std::string_view pcmDesc, StreamConfig streamConfig);
+  void record();
 
   AlsaConfig config_;
+
+  std::atomic<bool> shouldRecord_;
+  std::thread recordingThread_;
+
+  std::mutex audioChunkMutex_;
+  std::vector<uint8_t> audioData_;
 
   std::unique_ptr<char> inputBuffer_;
   // Have to make params a raw pointer since the underlying type is opaque (apparently)
   snd_pcm_hw_params_t* params_;
   std::unique_ptr<snd_pcm_t, SndPcmDeleter> pcmHandle_;
-  std::unique_ptr<char> buffer_;
-  std::streamsize bufferSize_;
+  // Amount of bytes that will be written to/read form each cycle
+  size_t audioChunkSize_;
   std::shared_ptr<spdlog::logger> logger_;
 };
 

@@ -3,7 +3,7 @@ add_library(
     AlsaCapture.cpp
     AlsaPlayback.cpp
     AlsaInterface.cpp
-    DecoderInterface.cpp
+    DecoderClient.cpp
 )
 
 target_link_libraries(

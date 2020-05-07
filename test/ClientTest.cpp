@@ -5,7 +5,7 @@
 #include <fstream>
 
 #include "AlsaInterface.hpp"
-#include "DecoderInterface.hpp"
+#include "DecoderClient.hpp"
 
 // Note: Logic currently expects the test audio files to be in the current directory
 
@@ -51,20 +51,24 @@ TEST(ClientTest, PlaybackAudioFromFile) {
 }
 
 // This requires the tcp decoding server to be up
-TEST(ClientTest, ConnectToDecodeServer) {
+TEST(ClientTest, TalkToDecodeServer) {
+  using namespace std::literals::string_view_literals;
 
-  const std::string inputAudio = "unittestDecodeServer.raw";
+  constexpr auto port = "5050"sv;
+  [[maybe_unused]] constexpr auto localhost = "127.0.0.1"sv;
+  [[maybe_unused]] constexpr auto kaldiServer = "195.1.168.165"sv;
 
-  mik::DecoderInterface iface;
-  iface.connect("127.0.0.1", "5050");
+  mik::AlsaConfig config;
+  mik::AlsaInterface alsa(config);
+  mik::DecoderClient client;
+  client.connect(kaldiServer, port);
 
-  // Note: this should not be const
-  auto audioBuffer = mik::Utils::readInAudiofile(inputAudio);
+  const auto audioBuffer = alsa.captureAudioUntilUserExit();
   ASSERT_FALSE(audioBuffer.empty());
 
-  iface.sendAudio(audioBuffer);
+  client.sendAudioToServer(audioBuffer);
 
-  const auto result = iface.getResult();
+  const auto result = client.getResultFromServer();
   ASSERT_FALSE(result.empty());
 }
 

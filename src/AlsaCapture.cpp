@@ -7,11 +7,10 @@
 #include <fmt/locale.h>
 
 #include "AlsaInterface.hpp"
-#include "Recorder.hpp"
 
 namespace mik {
 
-void Recorder::stopRecording() {
+void AlsaInterface::stopRecording() {
   shouldRecord_ = false;
   if (recordingThread_.joinable()) {
     recordingThread_.join();
@@ -22,27 +21,18 @@ void Recorder::stopRecording() {
   logger_->info("Recording stopped.");
 }
 
-std::unique_ptr<snd_pcm_t, SndPcmDeleter> Recorder::takePcmHandle() {
-  if (shouldRecord_ == false) {
-    // Do not allow this during recording
-    // Replaces pcmHandle_ with nullptr and returns pcmHandle_
-    return std::exchange(pcmHandle_, nullptr);
-  }
-  return nullptr;
-}
-
-void Recorder::startRecording() {
+void AlsaInterface::startRecording() {
   // Create the thread objec which will start off the recording
   shouldRecord_ = true;
-  recordingThread_ = std::thread(&Recorder::record, this);
+  recordingThread_ = std::thread(&AlsaInterface::record, this);
   logger_->info("Recording started.");
 }
 
-void Recorder::record() {
+void AlsaInterface::record() {
   logger_->debug("record(): start");
 
   // Allocate a chunk of data for the buffer and wrap it in a unique_ptr
-  auto cBuffer = std::make_unique<AudioType[]>(audioChunkSize_);
+  auto cBuffer = std::make_unique<uint8_t[]>(audioChunkSize_);
 
   while (shouldRecord_) {
 
@@ -75,8 +65,7 @@ void Recorder::record() {
   logger_->debug("record(): end");
 }
 
-// Capture audio until user exits
-std::vector<AudioType> AlsaInterface::captureAudioUntilUserExit() {
+std::vector<uint8_t> AlsaInterface::captureAudioUntilUserExit() {
   logger_->info("Starting capture until user exits...");
 
   // Capture audio until user presses a key
@@ -87,34 +76,27 @@ std::vector<AudioType> AlsaInterface::captureAudioUntilUserExit() {
     this->configureInterface();
   }
 
-  // The recorder should take ownership of the device handle
-  Recorder rec(std::move(pcmHandle_), config_);
-
   const auto start = std::chrono::steady_clock::now();
   fmt::print("Starting recording...\n");
-  rec.startRecording();
+  this->startRecording();
 
   fmt::print("Press <ENTER> to stop recording\n");
   [[maybe_unused]] std::string input;
   std::getline(std::cin, input);
 
-  rec.stopRecording();
+  this->stopRecording();
 
   const auto end = std::chrono::steady_clock::now();
   const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   const auto secondsAsFraction = static_cast<double>(duration.count()) / 1000.0;
-  const auto audio = rec.getAudioData();
   const auto infoMsg =
       fmt::format(std::locale("en_US.UTF-8"),
                   "Recording stopped, received {} seconds of audio totalling {:L} bytes",
-                  secondsAsFraction, audio.size());
+                  secondsAsFraction, audioData_.size());
   logger_->debug(infoMsg);
   fmt::print("{}\n", infoMsg);
 
-  // Recorder was only a local so take the handle back
-  pcmHandle_ = rec.takePcmHandle();
-
-  return audio;
+  return audioData_;
 }
 
 // Capture fixed duration of audio
@@ -140,12 +122,15 @@ void AlsaInterface::captureAudio(std::ostream& outputStream) {
 
   auto startTime = std::chrono::steady_clock::now();
 
+  // The output stream wants this to be a char instead of uint_8, just make it a char
+  auto cBuffer = std::make_unique<char[]>(audioChunkSize_);
+
   logger_->info("Will be running {} loops", loopsLeft);
   logger_->info("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
 
   while (loopsLeft > 0) {
     --loopsLeft;
-    auto status = snd_pcm_readi(pcmHandle_.get(), buffer_.get(), config_.frames);
+    auto status = snd_pcm_readi(pcmHandle_.get(), cBuffer.get(), config_.frames);
     if (status == -EPIPE) {
       // Overran the buffer
       logger_->error("Overran buffer, received EPIPE. Will continue");
@@ -160,7 +145,7 @@ void AlsaInterface::captureAudio(std::ostream& outputStream) {
       continue;
     }
 
-    outputStream.write(buffer_.get(), bufferSize_);
+    outputStream.write(cBuffer.get(), static_cast<std::streamsize>(audioChunkSize_));
   }
 
   auto endTime = std::chrono::steady_clock::now();

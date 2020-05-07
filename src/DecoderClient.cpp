@@ -7,29 +7,29 @@
 #include <fstream>
 #include <iostream>
 
-#include "DecoderInterface.hpp"
+#include "DecoderClient.hpp"
 
 namespace mik {
 
-DecoderInterface::DecoderInterface() : ioContext_(), socket_(ioContext_) {
+DecoderClient::DecoderClient() : ioContext_(), socket_(ioContext_) {
   try {
-    logger_ = spdlog::basic_logger_mt("DecodeInterfaceLogger", "logs/client.log");
+    logger_ = spdlog::basic_logger_mt("DecoderClientLogger", "logs/client.log");
   } catch (const spdlog::spdlog_ex& e) {
     std::cerr << "Log init failed with spdlog_ex: " << e.what() << std::endl;
   }
 
   logger_->info("--------------------------------------------");
-  logger_->info("DecoderInterface created.");
+  logger_->info("DecoderClient created.");
   logger_->info("--------------------------------------------");
   logger_->set_level(spdlog::level::level_enum::debug);
   logger_->debug("Debug-level logging enabled");
 }
 
-void DecoderInterface::connect(std::string_view host, std::string_view port) {
+void DecoderClient::connect(std::string_view host, std::string_view port) {
 
   boost::asio::ip::tcp::resolver res(ioContext_);
-
   boost::asio::ip::tcp::resolver::results_type endpoints;
+
   try {
     endpoints = res.resolve(host, port);
 
@@ -50,12 +50,12 @@ void DecoderInterface::connect(std::string_view host, std::string_view port) {
   }
 }
 
-size_t DecoderInterface::sendAudio(std::vector<AudioType>& buffer) {
+size_t DecoderClient::sendAudioToServer(const std::vector<uint8_t>& buffer) {
   logger_->debug("Writing to the socket...");
-  // TODO This should be a const_buffer, but there doesn't seem to be a vector -> const_buffer
-  // constructor
+
   try {
-    const auto bytesWritten = boost::asio::write(socket_, boost::asio::buffer(buffer));
+    const boost::asio::const_buffer boostBuffer(buffer.data(), buffer.size());
+    const auto bytesWritten = boost::asio::write(socket_, boostBuffer);
     logger_->debug("Wrote {} bytes of audio to the socket", bytesWritten);
     return bytesWritten;
   } catch (const boost::system::system_error& e) {
@@ -64,7 +64,7 @@ size_t DecoderInterface::sendAudio(std::vector<AudioType>& buffer) {
   }
 }
 
-std::string DecoderInterface::getResult() {
+std::string DecoderClient::getResultFromServer() {
   // Read in reply
   boost::asio::streambuf streamBuf;
   size_t bytesRead;
@@ -76,6 +76,7 @@ std::string DecoderInterface::getResult() {
   }
   logger_->debug("Read in {} bytes of results");
   const auto bufIter = streamBuf.data();
+  // Create the string based off of the streamBuf range
   const std::string result(boost::asio::buffers_begin(bufIter),
                            boost::asio::buffers_begin(bufIter) + static_cast<long>(bytesRead));
   if (result.empty()) {
@@ -92,12 +93,12 @@ std::streampos findSizeOfFileStream(std::istream& str) {
   return size;
 }
 
-std::vector<AudioType> Utils::readInAudiofile(std::string_view filename) {
+std::vector<uint8_t> Utils::readInAudiofile(std::string_view filename) {
 
-  auto logger = spdlog::get("DecodeInterfaceLogger");
+  auto logger = spdlog::get("DecoderClientLogger");
 
   std::fstream inputStream(std::string(filename), inputStream.in | std::fstream::binary);
-  std::istream_iterator<AudioType> inputIter(inputStream);
+  std::istream_iterator<uint8_t> inputIter(inputStream);
 
   if (!inputStream.is_open()) {
     logger->error("Could not open inputfile for reading\n");
@@ -108,12 +109,12 @@ std::vector<AudioType> Utils::readInAudiofile(std::string_view filename) {
   logger->debug("{} is {} bytes", filename, inputSize);
 
   // Read in bufferSize amount of bytes from the audio file into the buffer
-  std::vector<AudioType> audioBuffer;
-  audioBuffer.reserve(static_cast<std::vector<AudioType>::size_type>(inputSize));
+  std::vector<uint8_t> audioBuffer;
+  audioBuffer.reserve(static_cast<std::vector<uint8_t>::size_type>(inputSize));
   logger->debug("audioBuffer has {} bytes before reading in file", audioBuffer.size());
 
   // Read in entire file
-  std::copy(inputIter, std::istream_iterator<AudioType>(), std::back_inserter(audioBuffer));
+  std::copy(inputIter, std::istream_iterator<uint8_t>(), std::back_inserter(audioBuffer));
   // inputStream.read(audioBuffer.data(), inputSize);
 
   const auto bytesRead = inputStream.gcount();

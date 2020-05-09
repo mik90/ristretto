@@ -41,8 +41,13 @@ struct SndPcmDeleter {
 };
 
 struct AlsaConfig {
+  // Is this samples per second (Hz)? I can't quite figure this out.
+  // 44,100 Hz is CD-quality and too high for ASR
+  // 16,000 Hz would be best
   unsigned int samplingRate_bps = 44100;
+  // Not necessary if recording is indefinite
   unsigned int recordingDuration_us = 5000000;
+  // Not necessary if recording is indefinite
   unsigned int recordingPeriod_us = 735;
 
   snd_pcm_uframes_t frames = 32;

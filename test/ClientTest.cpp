@@ -9,7 +9,7 @@
 
 // Note: Logic currently expects the test audio files to be in the current directory
 
-TEST(ClientTest, CaptureAudioInBuffer) {
+TEST(AlsaTest, CaptureAudioInBuffer) {
 
   mik::AlsaConfig config;
   config.recordingDuration_us = mik::AlsaConfig::secondsToMicroseconds(2);
@@ -20,7 +20,7 @@ TEST(ClientTest, CaptureAudioInBuffer) {
   ASSERT_GT(audio.size(), 0);
 }
 
-TEST(ClientTest, CaptureAudioToFile) {
+TEST(AlsaTest, CaptureAudioToFile) {
 
   const std::string outputAudio = "unittestCapture.raw";
   mik::AlsaConfig config;
@@ -37,7 +37,7 @@ TEST(ClientTest, CaptureAudioToFile) {
   std::filesystem::remove(testOutput);
 }
 
-TEST(ClientTest, PlaybackAudioFromFile) {
+TEST(AlsaTest, PlaybackAudioFromFile) {
 
   const std::string inputAudio = "unittestPlayback.raw";
   mik::AlsaConfig config;
@@ -52,20 +52,17 @@ TEST(ClientTest, PlaybackAudioFromFile) {
 
 // This requires the tcp decoding server to be up
 TEST(ClientTest, TalkToDecodeServer) {
-  using namespace std::literals::string_view_literals;
-
-  constexpr auto port = "5050"sv;
-  [[maybe_unused]] constexpr auto localhost = "127.0.0.1"sv;
-  [[maybe_unused]] constexpr auto kaldiServer = "195.1.168.165"sv;
 
   mik::AlsaConfig config;
+  config.samplingRate_bps = 16000; // 16,000 Hz, I guess
   mik::AlsaInterface alsa(config);
-  mik::DecoderClient client;
-  client.connect(kaldiServer, port);
 
   const auto audioBuffer = alsa.captureAudioUntilUserExit();
   ASSERT_FALSE(audioBuffer.empty());
 
+  mik::DecoderClient client;
+  // Could also do localhost "127.0.0.1"
+  client.connect("192.168.1.165", "5050");
   client.sendAudioToServer(audioBuffer);
 
   const auto result = client.getResultFromServer();

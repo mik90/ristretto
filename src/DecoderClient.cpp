@@ -12,10 +12,17 @@
 namespace mik {
 
 DecoderClient::DecoderClient() : ioContext_(), socket_(ioContext_) {
-  try {
-    logger_ = spdlog::basic_logger_mt("DecoderClientLogger", "logs/client.log");
-  } catch (const spdlog::spdlog_ex& e) {
-    std::cerr << "Log init failed with spdlog_ex: " << e.what() << std::endl;
+  if (spdlog::get("AlsaLogger")) {
+    // The logger exists already
+    logger_ = spdlog::get("AlsaLogger");
+    logger_->set_level(spdlog::level::debug);
+  } else {
+    try {
+      logger_ = spdlog::basic_logger_mt("AlsaLogger", "logs/client.log", true);
+      logger_->set_level(spdlog::level::debug);
+    } catch (const spdlog::spdlog_ex& e) {
+      std::cerr << "Log init failed with spdlog_ex: " << e.what() << std::endl;
+    }
   }
 
   logger_->info("--------------------------------------------");
@@ -23,6 +30,7 @@ DecoderClient::DecoderClient() : ioContext_(), socket_(ioContext_) {
   logger_->info("--------------------------------------------");
   logger_->set_level(spdlog::level::level_enum::debug);
   logger_->debug("Debug-level logging enabled");
+  logger_->flush();
 }
 
 void DecoderClient::connect(std::string_view host, std::string_view port) {
@@ -39,10 +47,12 @@ void DecoderClient::connect(std::string_view host, std::string_view port) {
   }
 
   logger_->info("Retrieved endpoints");
+  logger_->info("Attempting to connect to {}:{}...", host, port);
+  logger_->flush(); // Flushing since connect() blocks
 
   try {
     boost::asio::connect(socket_, endpoints);
-    logger_->info("Connected to {}:{}", host, port);
+    logger_->info("Connected.");
 
   } catch (const boost::system::system_error& e) {
     logger_->info("Caught exception on connect(): {}", e.what());
@@ -67,20 +77,23 @@ size_t DecoderClient::sendAudioToServer(const std::vector<uint8_t>& buffer) {
 std::string DecoderClient::getResultFromServer() {
   // Read in reply
   boost::asio::streambuf streamBuf;
-  size_t bytesRead;
+  size_t bytesRead = 0;
   try {
     bytesRead = boost::asio::read_until(socket_, streamBuf, "\n");
   } catch (const boost::system::system_error& e) {
     logger_->error("Got exception while reading from socket: {}", e.what());
     return "";
   }
-  logger_->debug("Read in {} bytes of results");
+  logger_->debug("Read in {} bytes of results", bytesRead);
+
   const auto bufIter = streamBuf.data();
   // Create the string based off of the streamBuf range
   const std::string result(boost::asio::buffers_begin(bufIter),
                            boost::asio::buffers_begin(bufIter) + static_cast<long>(bytesRead));
   if (result.empty()) {
     logger_->error("The result from the decoder was empty");
+  } else {
+    logger_->debug("Result:{}", result);
   }
   return result;
 }

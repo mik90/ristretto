@@ -1,5 +1,6 @@
 #include <boost/asio.hpp>
 #include <fmt/core.h>
+#include <fmt/locale.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -49,8 +50,11 @@ size_t DecoderClient::sendAudioToServer(const std::vector<uint8_t>& buffer) {
 
   try {
     const boost::asio::const_buffer boostBuffer(buffer.data(), buffer.size());
+    SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"), "Boost buffer is {:L} bytes large",
+                             boostBuffer.size()));
     const auto bytesWritten = boost::asio::write(socket_, boostBuffer);
-    SPDLOG_DEBUG("Wrote {} bytes of audio to the socket", bytesWritten);
+    SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"), "Wrote {:L} bytes of audio to the socket",
+                             bytesWritten));
     return bytesWritten;
   } catch (const boost::system::system_error& e) {
     SPDLOG_ERROR("Couldn't write to socket: {}", e.what());
@@ -62,12 +66,17 @@ std::string DecoderClient::getResultFromServer() {
   // Read in reply
   boost::asio::streambuf streamBuf;
   size_t bytesRead = 0;
-  try {
-    bytesRead = boost::asio::read_until(socket_, streamBuf, "\n");
-  } catch (const boost::system::system_error& e) {
-    SPDLOG_ERROR("Got exception while reading from socket: {}", e.what());
-    return "";
+  boost::system::error_code error;
+  while (!error) {
+    bytesRead += boost::asio::read(socket_, streamBuf, error);
   }
+  if (error == boost::asio::error::eof) {
+    SPDLOG_DEBUG("Read until EOF");
+  } else if (error) {
+    SPDLOG_ERROR("Got exception while reading from socket: {}", error.message());
+    return std::string();
+  }
+
   SPDLOG_DEBUG("Read in {} bytes of results", bytesRead);
 
   const auto bufIter = streamBuf.data();

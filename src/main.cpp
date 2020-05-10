@@ -40,6 +40,8 @@ int main(int argc, char** argv) {
 
   // Use the default config
   mik::AlsaConfig config;
+  // config.samplingFreq_Hz = 8000;
+  config.samplingFreq_Hz = 4000;
   mik::AlsaInterface alsa(config);
 
   if (capture && outputFilename) {

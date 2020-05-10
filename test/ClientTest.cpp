@@ -53,16 +53,10 @@ TEST(AlsaTest, PlaybackAudioFromFile) {
 
 // This requires the tcp decoding server to be up
 TEST(ClientTest, SendAudioFileToServer) {
-
-  mik::AlsaConfig config;
-  config.samplingFreq_Hz = 8000;
-  mik::AlsaInterface alsa(config);
-
-  const auto audioBuffer = mik::Utils::readInAudioFile("ClientTest_audio.raw");
+  const auto audioBuffer = mik::Utils::readInAudioFile("ClientTestAudio8KHz.raw");
   ASSERT_FALSE(audioBuffer.empty());
 
   mik::DecoderClient client;
-  // Could also do localhost "127.0.0.1"
   // client.connect("192.168.1.165", "5050");
   client.connect("127.0.0.1", "5050");
   client.sendAudioToServer(audioBuffer);

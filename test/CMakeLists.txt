@@ -1,6 +1,7 @@
 include(GoogleTest)
 
 add_executable(ClientTest ClientTest.cpp)
+
 target_link_libraries(
   ClientTest PRIVATE project_options project_warnings
     AlsaInterface
@@ -12,4 +13,7 @@ target_include_directories(
     ${CMAKE_SOURCE_DIR}/src
 )
 
-gtest_discover_tests(ClientTest)
+# Skip tests that require user interaction
+gtest_discover_tests(ClientTest 
+  EXTRA_ARGS --gtest_filter=-*USER_INPUT_*
+)

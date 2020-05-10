@@ -10,7 +10,40 @@
 
 // Note: Logic currently expects the test audio files to be in the current directory
 
-TEST(AlsaTest, CaptureAudioInBuffer) {
+TEST(UtilTest, ReadInAudioFile) {
+  const auto audioBuffer = mik::Utils::readInAudioFile("ClientTestAudio8KHz.raw");
+  ASSERT_EQ(audioBuffer.size(), 160000);
+}
+
+TEST(ClientTest, FilterResult) {
+  const auto testString("this \n"
+                        "this is a test \n"
+                        "this is a test one \n"
+                        "this is a test one two \n"
+                        "this is a test one two three \n"
+                        "this is a test one two three \n"
+                        "\n"
+                        "\n");
+  const auto result = mik::filterResult(testString);
+  ASSERT_EQ(result, "this is a test one two three");
+}
+
+// This requires the tcp decoding server to be up
+TEST(ClientTest, REQUIRES_SERVER_SendAudioFileToServer) {
+  const auto audioBuffer = mik::Utils::readInAudioFile("ClientTestAudio8KHz.raw");
+  ASSERT_FALSE(audioBuffer.empty());
+
+  mik::DecoderClient client;
+  // client.connect("192.168.1.165", "5050");
+  ASSERT_NO_THROW(client.connect("127.0.0.1", "5050"));
+  client.sendAudioToServer(audioBuffer);
+
+  const auto result = client.getResultFromServer();
+  ASSERT_FALSE(result.empty());
+  ASSERT_NE(result.find("this is a test one two three"), std::string::npos);
+}
+
+TEST(AlsaTest, USER_INPUT_CaptureAudioInBuffer) {
 
   mik::AlsaConfig config;
   config.recordingDuration_us = mik::AlsaConfig::secondsToMicroseconds(2);
@@ -21,7 +54,7 @@ TEST(AlsaTest, CaptureAudioInBuffer) {
   ASSERT_GT(audio.size(), 0);
 }
 
-TEST(AlsaTest, CaptureAudioToFile) {
+TEST(AlsaTest, USER_INPUT_CaptureAudioToFile) {
 
   const std::string outputAudio = "unittestCapture.raw";
   mik::AlsaConfig config;
@@ -38,7 +71,7 @@ TEST(AlsaTest, CaptureAudioToFile) {
   std::filesystem::remove(testOutput);
 }
 
-TEST(AlsaTest, PlaybackAudioFromFile) {
+TEST(AlsaTest, USER_INPUT_PlaybackAudioFromFile) {
 
   const std::string inputAudio = "unittestPlayback.raw";
   mik::AlsaConfig config;
@@ -51,28 +84,8 @@ TEST(AlsaTest, PlaybackAudioFromFile) {
   alsa.playbackAudio(inputStream);
 }
 
-// This requires the tcp decoding server to be up
-TEST(UtilTest, ReadInAudioFile) {
-  const auto audioBuffer = mik::Utils::readInAudioFile("ClientTestAudio8KHz.raw");
-  ASSERT_EQ(audioBuffer.size(), 160000);
-}
-
-// This requires the tcp decoding server to be up
-TEST(ClientTest, SendAudioFileToServer) {
-  const auto audioBuffer = mik::Utils::readInAudioFile("ClientTestAudio8KHz.raw");
-  ASSERT_FALSE(audioBuffer.empty());
-
-  mik::DecoderClient client;
-  // client.connect("192.168.1.165", "5050");
-  client.connect("127.0.0.1", "5050");
-  client.sendAudioToServer(audioBuffer);
-
-  const auto result = client.getResultFromServer();
-  ASSERT_FALSE(result.empty());
-}
-
-// This requires the tcp decoding server to be up
-TEST(ClientTest, TalkToDecodeServer) {
+// This requires the tcp decoding server to be up and also requires someone to press "enter"
+TEST(ClientTest, USER_INPUT_CaptureUserInputAndSendToServer) {
 
   mik::AlsaConfig config;
   config.samplingFreq_Hz = 8000;

@@ -14,6 +14,8 @@ namespace mik {
 // Used for sending audio to the Kaldi online2-tcp-nnet3-decode-faster server
 // Given a stream of audio, send it over TCP
 
+std::string filterResult(const std::string& fullResult);
+
 class DecoderClient {
 public:
   DecoderClient();

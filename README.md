@@ -2,8 +2,7 @@ This is a frontend for a kaldi TCP server
 should just read in audio from ALSA, then feed it to a server
 
 ## TODO
-- Check for accuracy of decoding, currently get inaccurate decoding. Might've been audio quality in testing.
-
+- Just get the last line sent or whatever the finished transcript is
 
 #### Kaldi server side
 - Download aspire chain model with HCLG already compiled

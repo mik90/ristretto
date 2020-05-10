@@ -28,7 +28,7 @@ void DecoderClient::connect(std::string_view host, std::string_view port) {
 
   } catch (const boost::system::system_error& e) {
     SPDLOG_ERROR("Error {}", e.what());
-    return;
+    throw(e);
   }
 
   SPDLOG_INFO("Retrieved endpoints");
@@ -39,8 +39,8 @@ void DecoderClient::connect(std::string_view host, std::string_view port) {
     SPDLOG_INFO("Connected.");
 
   } catch (const boost::system::system_error& e) {
-    SPDLOG_INFO("Caught exception on connect(): {}", e.what());
-    return;
+    SPDLOG_ERROR("Caught exception on connect(): {}", e.what());
+    throw(e);
   }
 }
 
@@ -66,8 +66,9 @@ size_t DecoderClient::sendAudioToServer(const std::vector<char>& buffer) {
 std::string DecoderClient::getResultFromServer() {
   // Read in reply
   boost::asio::streambuf streamBuf;
-  size_t bytesRead = 0;
   boost::system::error_code error;
+  size_t bytesRead = 0;
+
   while (!error) {
     bytesRead += boost::asio::read(socket_, streamBuf, error);
   }
@@ -87,9 +88,38 @@ std::string DecoderClient::getResultFromServer() {
   if (result.empty()) {
     SPDLOG_ERROR("The result from the decoder was empty");
   } else {
-    SPDLOG_DEBUG("Result:{}", result);
+    SPDLOG_DEBUG("Result:\"{}\"", result);
   }
   return result;
+}
+
+// Strip all the newlines until we get to text
+// use all that text until we get to the newline
+std::string filterResult(const std::string& fullResult) {
+  SPDLOG_INFO("Initial:{}", fullResult);
+  // Strip the temporary transcript to get the final result
+  auto endOfText = fullResult.crbegin();
+  while (*endOfText == '\n' || *endOfText == ' ') {
+    // Keep on skipping while the char is a newline or whitespace
+    ++endOfText;
+  }
+
+  auto startOfText = endOfText;
+  while (*startOfText != '\n') {
+    // Keep on skipping until we hit another newline
+    ++startOfText;
+  }
+
+  // Use these as forward iterators
+  const auto textSize = endOfText.base() - startOfText.base();
+  if (textSize <= 0) {
+    SPDLOG_ERROR("textSize is {} which is not positive!", textSize);
+    return std::string{};
+  }
+
+  const std::string filteredText(startOfText.base(), endOfText.base());
+  SPDLOG_INFO("Filtered:{}", filteredText);
+  return filteredText;
 }
 
 } // namespace mik

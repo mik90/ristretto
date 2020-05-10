@@ -92,7 +92,7 @@ public:
   ~AlsaInterface();
 
   void captureAudio(std::ostream& outputStream);
-  std::vector<uint8_t> captureAudioUntilUserExit();
+  std::vector<char> captureAudioUntilUserExit();
   void playbackAudio(std::istream& inputStream);
   Status updateConfiguration(const AlsaConfig& alsaConfig);
 
@@ -109,7 +109,7 @@ public:
   }
   void stopRecording();
   void startRecording();
-  std::vector<uint8_t> getAudioData() { return audioData_; }
+  std::vector<char> getAudioData() { return audioData_; }
 
 private:
   snd_pcm_t* openSoundDevice(std::string_view pcmDesc, StreamConfig streamConfig);
@@ -121,7 +121,7 @@ private:
   std::thread recordingThread_;
 
   std::mutex audioChunkMutex_;
-  std::vector<uint8_t> audioData_;
+  std::vector<char> audioData_;
 
   std::unique_ptr<char> inputBuffer_;
   // Have to make params a raw pointer since the underlying type is opaque (apparently)

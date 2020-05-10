@@ -1,25 +1,26 @@
+#include <fmt/locale.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 
 #include "Utils.hpp"
 
 namespace mik {
 
-std::streampos findSizeOfFileStream(std::istream& str) {
+size_t findSizeOfFileStream(std::istream& str) {
   const auto originalPos = str.tellg();    // Find current pos
   str.seekg(0, str.end);                   // Go back to start
   const std::streampos size = str.tellg(); // Find size
   str.seekg(originalPos, str.beg);         // Reset pos back to where we were
-  return size;
+  return static_cast<size_t>(size);
 }
 
-std::vector<uint8_t> Utils::readInAudioFile(std::string_view filename) {
-  std::fstream inputStream(std::string(filename), inputStream.in | std::fstream::binary);
-  std::istream_iterator<uint8_t> inputIter(inputStream);
+std::vector<char> Utils::readInAudioFile(std::string_view filename) {
+  std::ifstream inputStream(std::string(filename), inputStream.in | std::fstream::binary);
 
   if (!inputStream.is_open()) {
     SPDLOG_ERROR("Could not open inputfile for reading\n");
@@ -27,20 +28,19 @@ std::vector<uint8_t> Utils::readInAudioFile(std::string_view filename) {
   }
 
   const auto inputSize = findSizeOfFileStream(inputStream);
-  SPDLOG_DEBUG("{} is {} bytes", filename, inputSize);
+  SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"), "{} is {:L} bytes", filename, inputSize));
 
-  // Read in bufferSize amount of bytes from the audio file into the buffer
-  std::vector<uint8_t> audioBuffer;
-  audioBuffer.reserve(static_cast<std::vector<uint8_t>::size_type>(inputSize));
-  SPDLOG_DEBUG("audioBuffer has {} bytes before reading in file", audioBuffer.size());
+  // Read in the entire file
+  std::vector<char> audioBuffer;
+  audioBuffer.reserve(inputSize);
+  audioBuffer.assign((std::istreambuf_iterator<char>(inputStream)),
+                     std::istreambuf_iterator<char>());
 
-  // Read in entire file
-  std::copy(inputIter, std::istream_iterator<uint8_t>(), std::back_inserter(audioBuffer));
-  // inputStream.read(audioBuffer.data(), inputSize);
-
-  SPDLOG_DEBUG("Read in {} out of {} bytes from audio file", inputStream.gcount(), inputSize);
-  SPDLOG_DEBUG("audioBuffer has {} bytes after reading in file", audioBuffer.size());
-
+  SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"),
+                           "Read in {:L} out of {:L} bytes from audio file", inputStream.gcount(),
+                           inputSize));
+  SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"),
+                           "audioBuffer has {:L} bytes after reading in file", audioBuffer.size()));
   return audioBuffer;
 }
 

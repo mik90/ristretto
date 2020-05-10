@@ -52,6 +52,12 @@ TEST(AlsaTest, PlaybackAudioFromFile) {
 }
 
 // This requires the tcp decoding server to be up
+TEST(UtilTest, ReadInAudioFile) {
+  const auto audioBuffer = mik::Utils::readInAudioFile("ClientTestAudio8KHz.raw");
+  ASSERT_EQ(audioBuffer.size(), 160000);
+}
+
+// This requires the tcp decoding server to be up
 TEST(ClientTest, SendAudioFileToServer) {
   const auto audioBuffer = mik::Utils::readInAudioFile("ClientTestAudio8KHz.raw");
   ASSERT_FALSE(audioBuffer.empty());
@@ -64,6 +70,7 @@ TEST(ClientTest, SendAudioFileToServer) {
   const auto result = client.getResultFromServer();
   ASSERT_FALSE(result.empty());
 }
+
 // This requires the tcp decoding server to be up
 TEST(ClientTest, TalkToDecodeServer) {
 
@@ -86,5 +93,6 @@ TEST(ClientTest, TalkToDecodeServer) {
 
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
+  mik::Utils::createLogger();
   return RUN_ALL_TESTS();
 }

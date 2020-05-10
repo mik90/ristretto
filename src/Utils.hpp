@@ -11,7 +11,7 @@ namespace mik {
 
 class Utils {
 public:
-  static std::vector<uint8_t> readInAudioFile(std::string_view filename);
+  static std::vector<char> readInAudioFile(std::string_view filename);
   static void createLogger();
 };
 

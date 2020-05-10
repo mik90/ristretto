@@ -18,7 +18,7 @@ class DecoderClient {
 public:
   DecoderClient();
   void connect(std::string_view host, std::string_view port);
-  size_t sendAudioToServer(const std::vector<uint8_t>& buffer);
+  size_t sendAudioToServer(const std::vector<char>& buffer);
   std::string getResultFromServer();
 
 private:

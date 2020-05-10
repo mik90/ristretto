@@ -13,7 +13,6 @@
 namespace mik {
 
 DecoderClient::DecoderClient() : ioContext_(), socket_(ioContext_) {
-  Utils::createLogger();
   SPDLOG_INFO("--------------------------------------------");
   SPDLOG_INFO("DecoderClient created.");
   SPDLOG_INFO("--------------------------------------------");
@@ -45,16 +44,18 @@ void DecoderClient::connect(std::string_view host, std::string_view port) {
   }
 }
 
-size_t DecoderClient::sendAudioToServer(const std::vector<uint8_t>& buffer) {
+size_t DecoderClient::sendAudioToServer(const std::vector<char>& buffer) {
   SPDLOG_DEBUG("Writing to the socket...");
 
   try {
     const boost::asio::const_buffer boostBuffer(buffer.data(), buffer.size());
     SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"), "Boost buffer is {:L} bytes large",
                              boostBuffer.size()));
+
     const auto bytesWritten = boost::asio::write(socket_, boostBuffer);
     SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"), "Wrote {:L} bytes of audio to the socket",
                              bytesWritten));
+
     return bytesWritten;
   } catch (const boost::system::system_error& e) {
     SPDLOG_ERROR("Couldn't write to socket: {}", e.what());

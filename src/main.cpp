@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "AlsaInterface.hpp"
+#include "Utils.hpp"
 
 static constexpr auto Usage =
     R"(AlsaInterface.
@@ -38,6 +39,7 @@ int main(int argc, char** argv) {
   const auto outputFilename = args[std::string("<output_filename>")];
   const auto inputAudioFile = args[std::string("<input_audio_file>")];
 
+  mik::Utils::createLogger();
   // Use the default config
   mik::AlsaConfig config;
   // config.samplingFreq_Hz = 8000;

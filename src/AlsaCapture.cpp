@@ -66,7 +66,7 @@ void AlsaInterface::record() {
   SPDLOG_DEBUG("record(): end");
 }
 
-std::vector<uint8_t> AlsaInterface::captureAudioUntilUserExit() {
+std::vector<char> AlsaInterface::captureAudioUntilUserExit() {
   SPDLOG_INFO("Starting capture until user exits...");
 
   // Capture audio until user presses a key

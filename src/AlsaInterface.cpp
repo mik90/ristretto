@@ -4,7 +4,6 @@
 namespace mik {
 
 AlsaInterface::AlsaInterface(const AlsaConfig& alsaConfig) : config_(alsaConfig) {
-  Utils::createLogger();
   SPDLOG_INFO("Configuring AlsaInterface...");
   if (this->configureInterface() == Status::SUCCESS) {
     SPDLOG_INFO("Configured AlsaInterface successfully");

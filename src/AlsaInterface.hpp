@@ -2,13 +2,15 @@
 #define MIK_KALDI_CLIENT_HPP_
 
 #include <alsa/asoundlib.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/spdlog.h>
 
+#include <atomic>
+#include <cstring>
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 // This is the consumer-facing header
 
@@ -44,7 +46,7 @@ struct AlsaConfig {
   // Is this samples per second (Hz)? I can't quite figure this out.
   // 44,100 Hz is CD-quality and too high for ASR
   // 16,000 Hz would be best
-  unsigned int samplingRate_bps = 44100;
+  unsigned int samplingFreq_Hz = 44100;
   // Not necessary if recording is indefinite
   unsigned int recordingDuration_us = 5000000;
   // Not necessary if recording is indefinite
@@ -74,7 +76,7 @@ struct AlsaConfig {
 
   // Isn't there a way to automatically generate this?
   inline bool operator==(const AlsaConfig& rhs) const noexcept {
-    return samplingRate_bps == rhs.samplingRate_bps &&
+    return samplingFreq_Hz == rhs.samplingFreq_Hz &&
            recordingDuration_us == rhs.recordingDuration_us &&
            recordingPeriod_us == rhs.recordingPeriod_us && frames == rhs.frames &&
            format == rhs.format && accessType == rhs.accessType &&
@@ -127,7 +129,6 @@ private:
   std::unique_ptr<snd_pcm_t, SndPcmDeleter> pcmHandle_;
   // Amount of bytes that will be written to/read form each cycle
   size_t audioChunkSize_;
-  std::shared_ptr<spdlog::logger> logger_;
 };
 
 } // namespace mik

@@ -6,6 +6,7 @@
 
 #include "AlsaInterface.hpp"
 #include "DecoderClient.hpp"
+#include "Utils.hpp"
 
 // Note: Logic currently expects the test audio files to be in the current directory
 
@@ -51,10 +52,29 @@ TEST(AlsaTest, PlaybackAudioFromFile) {
 }
 
 // This requires the tcp decoding server to be up
+TEST(ClientTest, SendAudioFileToServer) {
+
+  mik::AlsaConfig config;
+  config.samplingFreq_Hz = 8000;
+  mik::AlsaInterface alsa(config);
+
+  const auto audioBuffer = mik::Utils::readInAudioFile("ClientTest_audio.raw");
+  ASSERT_FALSE(audioBuffer.empty());
+
+  mik::DecoderClient client;
+  // Could also do localhost "127.0.0.1"
+  // client.connect("192.168.1.165", "5050");
+  client.connect("127.0.0.1", "5050");
+  client.sendAudioToServer(audioBuffer);
+
+  const auto result = client.getResultFromServer();
+  ASSERT_FALSE(result.empty());
+}
+// This requires the tcp decoding server to be up
 TEST(ClientTest, TalkToDecodeServer) {
 
   mik::AlsaConfig config;
-  config.samplingRate_bps = 16000; // 16,000 Hz, I guess
+  config.samplingFreq_Hz = 8000;
   mik::AlsaInterface alsa(config);
 
   const auto audioBuffer = alsa.captureAudioUntilUserExit();
@@ -62,7 +82,8 @@ TEST(ClientTest, TalkToDecodeServer) {
 
   mik::DecoderClient client;
   // Could also do localhost "127.0.0.1"
-  client.connect("192.168.1.165", "5050");
+  // client.connect("192.168.1.165", "5050");
+  client.connect("127.0.0.1", "5050");
   client.sendAudioToServer(audioBuffer);
 
   const auto result = client.getResultFromServer();

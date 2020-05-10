@@ -41,20 +41,19 @@ int main(int argc, char** argv) {
   // Use the default config
   mik::AlsaConfig config;
   mik::AlsaInterface alsa(config);
-  auto logger = spdlog::get("AlsaLogger");
 
   if (capture && outputFilename) {
     std::fstream outputStream(outputFilename.asString(), outputStream.trunc | outputStream.out);
 
     if (!outputStream.is_open()) {
-      logger->error("Could not open {} for creating/writing", outputFilename.asString());
+      SPDLOG_ERROR("Could not open {} for creating/writing", outputFilename.asString());
       std::exit(1);
     }
     alsa.captureAudio(outputStream);
   } else if (playback && inputAudioFile) {
     std::fstream inputStream(inputAudioFile.asString(), inputStream.in);
     if (!inputStream.is_open()) {
-      logger->error("Could not open {} for reading", inputAudioFile.asString());
+      SPDLOG_ERROR("Could not open {} for reading", inputAudioFile.asString());
       std::exit(1);
     }
     alsa.playbackAudio(inputStream);

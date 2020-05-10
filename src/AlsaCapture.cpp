@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <fmt/locale.h>
+#include <spdlog/spdlog.h>
 
 #include "AlsaInterface.hpp"
 
@@ -18,18 +19,18 @@ void AlsaInterface::stopRecording() {
   if (pcmHandle_) {
     snd_pcm_drop(pcmHandle_.get());
   }
-  logger_->info("Recording stopped.");
+  SPDLOG_INFO("Recording stopped.");
 }
 
 void AlsaInterface::startRecording() {
   // Create the thread objec which will start off the recording
   shouldRecord_ = true;
   recordingThread_ = std::thread(&AlsaInterface::record, this);
-  logger_->info("Recording started.");
+  SPDLOG_INFO("Recording started.");
 }
 
 void AlsaInterface::record() {
-  logger_->debug("record(): start");
+  SPDLOG_DEBUG("record(): start");
 
   // Allocate a chunk of data for the buffer and wrap it in a unique_ptr
   auto cBuffer = std::make_unique<uint8_t[]>(audioChunkSize_);
@@ -40,15 +41,15 @@ void AlsaInterface::record() {
     const auto status = snd_pcm_readi(pcmHandle_.get(), cBuffer.get(), config_.frames);
     if (status == -EPIPE) {
       // Overran the buffer
-      logger_->error("record(): Overran buffer, received EPIPE. Will continue");
+      SPDLOG_WARN("record(): Overran buffer, received EPIPE. Will continue");
       snd_pcm_prepare(pcmHandle_.get());
       continue;
     } else if (status < 0) {
-      logger_->error("record(): Error reading from pcm. errno:{}",
-                     std::strerror(static_cast<int>(status)));
+      SPDLOG_ERROR("record(): Error reading from pcm. errno:{}",
+                   std::strerror(static_cast<int>(status)));
       return;
     } else if (status != static_cast<int>(config_.frames)) {
-      logger_->error("record(): Should've read {} frames, only read {}.", config_.frames, status);
+      SPDLOG_WARN("record(): Should've read {} frames, only read {}.", config_.frames, status);
       snd_pcm_prepare(pcmHandle_.get());
       continue;
     }
@@ -62,15 +63,15 @@ void AlsaInterface::record() {
     }
   }
 
-  logger_->debug("record(): end");
+  SPDLOG_DEBUG("record(): end");
 }
 
 std::vector<uint8_t> AlsaInterface::captureAudioUntilUserExit() {
-  logger_->info("Starting capture until user exits...");
+  SPDLOG_INFO("Starting capture until user exits...");
 
   // Capture audio until user presses a key
   if (!this->isConfiguredForCapture()) {
-    logger_->debug("Interface was not configured for audio capture! Re-configuring...");
+    SPDLOG_DEBUG("Interface was not configured for audio capture! Re-configuring...");
     config_.streamConfig = StreamConfig::CAPTURE;
     // Re-configure the interface with the new config
     this->configureInterface();
@@ -93,7 +94,7 @@ std::vector<uint8_t> AlsaInterface::captureAudioUntilUserExit() {
       fmt::format(std::locale("en_US.UTF-8"),
                   "Recording stopped, received {} seconds of audio totalling {:L} bytes",
                   secondsAsFraction, audioData_.size());
-  logger_->debug(infoMsg);
+  SPDLOG_DEBUG(infoMsg);
   fmt::print("{}\n", infoMsg);
 
   return audioData_;
@@ -101,22 +102,22 @@ std::vector<uint8_t> AlsaInterface::captureAudioUntilUserExit() {
 
 // Capture fixed duration of audio
 void AlsaInterface::captureAudio(std::ostream& outputStream) {
-  logger_->info("Starting capture...");
+  SPDLOG_INFO("Starting capture...");
 
   if (!this->isConfiguredForCapture()) {
-    logger_->debug("Interface was not configured for audio capture! Re-configuring...");
+    SPDLOG_DEBUG("Interface was not configured for audio capture! Re-configuring...");
     config_.streamConfig = StreamConfig::CAPTURE;
     // Re-configure the interface with the new config
     this->configureInterface();
   }
 
-  logger_->info("Calculating amount of recording loops...");
-  logger_->info("Recording duration is {} microseconds ({} seconds as integer division)",
-                config_.recordingDuration_us,
-                AlsaConfig::microsecondsToSeconds(config_.recordingDuration_us));
-  logger_->info("Recording period is {} microseconds ({} seconds as integer division)",
-                config_.recordingPeriod_us,
-                AlsaConfig::microsecondsToSeconds(config_.recordingPeriod_us));
+  SPDLOG_INFO("Calculating amount of recording loops...");
+  SPDLOG_INFO("Recording duration is {} microseconds ({} seconds as integer division)",
+              config_.recordingDuration_us,
+              AlsaConfig::microsecondsToSeconds(config_.recordingDuration_us));
+  SPDLOG_INFO("Recording period is {} microseconds ({} seconds as integer division)",
+              config_.recordingPeriod_us,
+              AlsaConfig::microsecondsToSeconds(config_.recordingPeriod_us));
 
   int loopsLeft = config_.calculateRecordingLoops();
 
@@ -125,22 +126,22 @@ void AlsaInterface::captureAudio(std::ostream& outputStream) {
   // The output stream wants this to be a char instead of uint_8, just make it a char
   auto cBuffer = std::make_unique<char[]>(audioChunkSize_);
 
-  logger_->info("Will be running {} loops", loopsLeft);
-  logger_->info("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
+  SPDLOG_INFO("Will be running {} loops", loopsLeft);
+  SPDLOG_INFO("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
 
   while (loopsLeft > 0) {
     --loopsLeft;
     auto status = snd_pcm_readi(pcmHandle_.get(), cBuffer.get(), config_.frames);
     if (status == -EPIPE) {
       // Overran the buffer
-      logger_->error("Overran buffer, received EPIPE. Will continue");
+      SPDLOG_WARN("Overran buffer, received EPIPE. Will continue");
       snd_pcm_prepare(pcmHandle_.get());
       continue;
     } else if (status < 0) {
-      logger_->error("Error reading from pcm. errno:{}", std::strerror(static_cast<int>(status)));
+      SPDLOG_ERROR("Error reading from pcm. errno:{}", std::strerror(static_cast<int>(status)));
       return;
     } else if (status != static_cast<int>(config_.frames)) {
-      logger_->error("Should've read {} frames, only read {}.", config_.frames, status);
+      SPDLOG_WARN("Should've read {} frames, only read {}.", config_.frames, status);
       snd_pcm_prepare(pcmHandle_.get());
       continue;
     }
@@ -151,11 +152,11 @@ void AlsaInterface::captureAudio(std::ostream& outputStream) {
   auto endTime = std::chrono::steady_clock::now();
   const auto actualDuration =
       std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-  logger_->debug("Capture was configured to take {} milliseconds, it actually took {} ms",
-                 config_.recordingDuration_us / 1000, actualDuration);
+  SPDLOG_INFO("Capture was configured to take {} milliseconds, it actually took {} ms",
+              config_.recordingDuration_us / 1000, actualDuration);
 
   snd_pcm_drop(pcmHandle_.get());
-  logger_->info("Finished audio capture");
+  SPDLOG_INFO("Finished audio capture");
   return;
 }
 

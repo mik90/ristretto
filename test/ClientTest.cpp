@@ -115,6 +115,46 @@ TEST(ClientTest, USER_INPUT_CaptureUserInputAndSendToServer) {
   ASSERT_FALSE(result.empty());
 }
 
+class MockAlsaInterface : public mik::AlsaInterface {
+public:
+  MockAlsaInterface(const mik::AlsaConfig& config) : AlsaInterface(config){};
+  void setAudioData(const std::vector<char>& v) { audioData_ = v; }
+};
+
+TEST(AlsaTest, consumeAllAudio) {
+  // Default init 100 chars
+  const std::vector<char> internalAudioData(100);
+  mik::AlsaConfig config;
+  MockAlsaInterface alsa(config);
+  alsa.setAudioData(internalAudioData);
+
+  const auto audioData = alsa.consumeAllAudioData();
+  ASSERT_EQ(internalAudioData.size(), audioData.size());
+}
+
+TEST(AlsaTest, consumeDurationOfAudio_10ms) {
+  const std::vector<char> internalAudioData(425000);
+  mik::AlsaConfig config;
+  MockAlsaInterface alsa(config);
+  alsa.setAudioData(internalAudioData);
+
+  // 10 milliseconds should be 320,000 bytes
+  // This is found with the same calculation that i used to make it, so not the best test
+  const auto audioData = alsa.consumeDurationOfAudioData(10);
+  ASSERT_EQ(320000, audioData.size());
+}
+
+TEST(AlsaTest, consumeDurationOfAudio_LargeRequest) {
+  const std::vector<char> internalAudioData(5000);
+  mik::AlsaConfig config;
+  MockAlsaInterface alsa(config);
+  alsa.setAudioData(internalAudioData);
+
+  // 1000 milliseconds is a lot, so it should just return all the data that is available
+  const auto audioData = alsa.consumeDurationOfAudioData(1000);
+  ASSERT_EQ(internalAudioData.size(), audioData.size());
+}
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   mik::Utils::createLogger();

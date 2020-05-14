@@ -2,7 +2,9 @@ This is a frontend for a kaldi TCP server
 should just read in audio from ALSA, then feed it to a server
 
 ## TODO
-- Just get the last line sent or whatever the finished transcript is
+- Need to write test setup for the audio consumption logic
+- Send audio chunks to Kaldi, what duration though?
+- Logic for left context?
 
 #### Kaldi server side
 - Download aspire chain model with HCLG already compiled

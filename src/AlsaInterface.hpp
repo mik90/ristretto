@@ -77,7 +77,7 @@ struct AlsaConfig {
 class AlsaInterface {
 public:
   AlsaInterface(const AlsaConfig& alsaConfig);
-  ~AlsaInterface();
+  virtual ~AlsaInterface();
 
   void captureAudioFixedSize(std::ostream& outputStream, unsigned int seconds);
   std::vector<char> captureAudioUntilUserExit();
@@ -97,14 +97,10 @@ public:
   }
   void stopRecording();
   void startRecording();
-  std::vector<char> consumeAllAudioData() {
-    std::scoped_lock<std::mutex> lock(audioChunkMutex_);
-    // Swap our audio data for an empty vector and return the full one
-    return std::exchange(audioData_, std::vector<char>{});
-  }
+  std::vector<char> consumeAllAudioData();
   std::vector<char> consumeDurationOfAudioData(unsigned int milliseconds);
 
-private:
+protected:
   snd_pcm_t* openSoundDevice(std::string_view pcmDesc, StreamConfig streamConfig);
   void record();
 

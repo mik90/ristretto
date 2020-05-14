@@ -55,7 +55,8 @@ Status AlsaInterface::configureInterface() {
   SPDLOG_INFO("Allocating memory for parameters...");
 
   // TODO make an RAII wrapper, although it's a bit difficult as snd_pcm_hw_params is opaque from
-  // this level of abstraction
+  // this level of abstraction. I get a segfault when trying to free params, maybe the function that
+  // writes the params to the driver also frees them?
   snd_pcm_hw_params_t* params = nullptr;
   // This macro allocates the memory
   snd_pcm_hw_params_alloca(&params);
@@ -85,7 +86,6 @@ Status AlsaInterface::configureInterface() {
   if (status != 0) {
     SPDLOG_ERROR("Could not write parameters to the sound driver!");
     SPDLOG_ERROR("snd_pcm_hw_params() errno:{}", std::strerror(errno));
-    snd_pcm_hw_params_free(params);
     return Status::ERROR;
   }
 
@@ -97,12 +97,17 @@ Status AlsaInterface::configureInterface() {
   snd_pcm_hw_params_get_period_time(params, &(config_.periodDuration_us), &dir);
   if (config_.periodDuration_us == 0) {
     SPDLOG_ERROR("Can't divide by a recording period of 0us!");
-    snd_pcm_hw_params_free(params);
     return Status::ERROR;
   }
   SPDLOG_INFO("Retrieved period duration of {} us", config_.periodDuration_us);
-  snd_pcm_hw_params_free(params);
   return Status::SUCCESS;
+}
+
+std::vector<char> AlsaInterface::consumeAllAudioData() {
+  std::scoped_lock<std::mutex> lock(audioChunkMutex_);
+  SPDLOG_DEBUG("Consuming all {} bytes of audio data", audioData_.size());
+  // Swap our audio data for an empty vector and return the full one
+  return std::exchange(audioData_, std::vector<char>{});
 }
 
 std::vector<char> AlsaInterface::consumeDurationOfAudioData(unsigned int milliseconds) {
@@ -111,9 +116,13 @@ std::vector<char> AlsaInterface::consumeDurationOfAudioData(unsigned int millise
 
   const auto periodCount = duration_us / config_.periodDuration_us;
   const auto bytesToGet = periodCount * config_.periodSizeBytes;
+  SPDLOG_DEBUG("Given {} ms, get {} periods totalling {} bytes", milliseconds, periodCount,
+               bytesToGet);
 
   if (bytesToGet > audioData_.size()) {
-    // If too many bytes are requested, just give it all that is available
+    SPDLOG_INFO(
+        "{} bytes were requested but only {} were available. Returning all that are available.",
+        bytesToGet, audioData_.size());
     return std::exchange(audioData_, std::vector<char>{});
   } else if (bytesToGet == 0) {
     return std::vector<char>{};

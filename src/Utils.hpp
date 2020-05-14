@@ -17,8 +17,10 @@ public:
 
   // C libraries don't hvae std::chrono so conversion to primatives is needed
   // This is a bit less verbose than doing the conversoin each time
-  static unsigned int microsecondsToSeconds(unsigned int microseconds);
   static unsigned int secondsToMicroseconds(unsigned int seconds);
+  static unsigned int millisecondsToMicroseconds(unsigned int milliseconds);
+
+  static unsigned int microsecondsToSeconds(unsigned int microseconds);
 };
 
 } // namespace mik

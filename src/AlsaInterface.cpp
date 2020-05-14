@@ -104,4 +104,36 @@ Status AlsaInterface::configureInterface() {
   snd_pcm_hw_params_free(params);
   return Status::SUCCESS;
 }
+
+std::vector<char> AlsaInterface::consumeDurationOfAudioData(unsigned int milliseconds) {
+  std::scoped_lock<std::mutex> lock(audioChunkMutex_);
+  const auto duration_us = Utils::millisecondsToMicroseconds(milliseconds);
+
+  const auto periodCount = duration_us / config_.periodDuration_us;
+  const auto bytesToGet = periodCount * config_.periodSizeBytes;
+
+  if (bytesToGet > audioData_.size()) {
+    // If too many bytes are requested, just give it all that is available
+    return std::exchange(audioData_, std::vector<char>{});
+  } else if (bytesToGet == 0) {
+    return std::vector<char>{};
+  }
+
+  // Split this vector into two. The lower indices wil be returned, the rest will be kept
+  const auto startOfConsumedAudio = std::cbegin(audioData_);
+  const auto endOfConsumedAudio =
+      std::next(startOfConsumedAudio,
+                static_cast<decltype(startOfConsumedAudio)::difference_type>(bytesToGet));
+
+  const auto startOfRemainingAudio = std::next(endOfConsumedAudio);
+  const auto endOfRemainingAudio = std::cend(audioData_);
+
+  const std::vector<char> consumedAudio(startOfConsumedAudio, endOfConsumedAudio);
+
+  std::vector<char> remainingAudio(startOfRemainingAudio, endOfRemainingAudio);
+  audioData_.swap(remainingAudio);
+
+  return consumedAudio;
+}
+
 } // namespace mik

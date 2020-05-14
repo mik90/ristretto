@@ -97,10 +97,12 @@ public:
   }
   void stopRecording();
   void startRecording();
-  std::vector<char> getAudioData() {
+  std::vector<char> consumeAllAudioData() {
     std::scoped_lock<std::mutex> lock(audioChunkMutex_);
-    return audioData_;
+    // Swap our audio data for an empty vector and return the full one
+    return std::exchange(audioData_, std::vector<char>{});
   }
+  std::vector<char> consumeDurationOfAudioData(unsigned int milliseconds);
 
 private:
   snd_pcm_t* openSoundDevice(std::string_view pcmDesc, StreamConfig streamConfig);

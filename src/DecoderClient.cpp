@@ -95,7 +95,7 @@ std::string DecoderClient::getResultFromServer() {
 
 // Strip all the newlines until we get to text
 // use all that text until we get to the newline
-std::string filterResult(const std::string& fullResult) {
+std::string DecoderClient::filterResult(const std::string& fullResult) {
   SPDLOG_INFO("Initial:{}", fullResult);
   // Strip the temporary transcript to get the final result
   auto endOfText = fullResult.crbegin();

@@ -60,15 +60,21 @@ void Utils::createLogger() {
   SPDLOG_DEBUG("Debug-level logging enabled");
 }
 
+unsigned int Utils::secondsToMicroseconds(unsigned int seconds) {
+  return static_cast<unsigned int>(
+      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds(seconds)).count());
+}
+
+unsigned int Utils::millisecondsToMicroseconds(unsigned int milliseconds) {
+  return static_cast<unsigned int>(
+      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds(milliseconds))
+          .count());
+}
+
 unsigned int Utils::microsecondsToSeconds(unsigned int microseconds) {
   return static_cast<unsigned int>(
       std::chrono::duration_cast<std::chrono::seconds>(std::chrono::microseconds(microseconds))
           .count());
-}
-
-unsigned int Utils::secondsToMicroseconds(unsigned int seconds) {
-  return static_cast<unsigned int>(
-      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds(seconds)).count());
 }
 
 } // namespace mik

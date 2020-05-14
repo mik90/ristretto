@@ -22,6 +22,7 @@ public:
   void connect(std::string_view host, std::string_view port);
   size_t sendAudioToServer(const std::vector<char>& buffer);
   std::string getResultFromServer();
+  static std::string filterResult(const std::string& result);
 
 private:
   boost::asio::io_context ioContext_;

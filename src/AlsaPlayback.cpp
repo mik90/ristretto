@@ -34,8 +34,9 @@ void AlsaInterface::playbackAudioFixedSize(std::istream& inputStream, unsigned i
   while (loopsLeft > 0) {
     --loopsLeft;
 
-    // Read in audioChunkSize_ amount of bytes from the audio file into the buffer
+    // Read in data from the audio file into the buffer
     inputStream.read(cBuffer.get(), static_cast<std::streamsize>(config_.periodSizeBytes));
+
     const auto bytesRead = inputStream.gcount();
     if (bytesRead == 0) {
       SPDLOG_ERROR("Hit unexpected EOF on audio input");

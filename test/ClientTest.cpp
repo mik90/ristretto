@@ -24,7 +24,7 @@ TEST(ClientTest, FilterResult) {
                         "this is a test one two three \n"
                         "\n"
                         "\n");
-  const auto result = mik::filterResult(testString);
+  const auto result = mik::DecoderClient::filterResult(testString);
   ASSERT_EQ(result, "this is a test one two three");
 }
 

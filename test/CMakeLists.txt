@@ -14,6 +14,4 @@ target_include_directories(
 )
 
 # Skip tests that require user interaction
-gtest_discover_tests(ClientTest 
-  EXTRA_ARGS --gtest_filter=-*USER_INPUT_*
-)
+gtest_discover_tests(ClientTest)

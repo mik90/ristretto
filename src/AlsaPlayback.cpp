@@ -3,9 +3,11 @@
 #include <spdlog/spdlog.h>
 
 #include "AlsaInterface.hpp"
+#include "Utils.hpp"
 
 namespace mik {
-void AlsaInterface::playbackAudio(std::istream& inputStream) {
+
+void AlsaInterface::playbackAudioFixedSize(std::istream& inputStream, unsigned int seconds) {
   SPDLOG_INFO("Starting playback...");
 
   if (!this->isConfiguredForPlayback()) {
@@ -16,7 +18,7 @@ void AlsaInterface::playbackAudio(std::istream& inputStream) {
   }
 
   SPDLOG_INFO("Calculating amount of recording loops...");
-  int loopsLeft = config_.calculateRecordingLoops();
+  int loopsLeft = config_.calculateRecordingLoops(Utils::secondsToMicroseconds(seconds));
   SPDLOG_INFO("Will be running {} loops", loopsLeft);
   SPDLOG_INFO("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
 
@@ -26,20 +28,21 @@ void AlsaInterface::playbackAudio(std::istream& inputStream) {
     return;
   }
 
-  auto cBuffer = std::make_unique<char[]>(audioChunkSize_);
+  auto cBuffer = std::make_unique<char[]>(config_.periodSizeBytes);
   SPDLOG_INFO("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
 
   while (loopsLeft > 0) {
     --loopsLeft;
 
     // Read in audioChunkSize_ amount of bytes from the audio file into the buffer
-    inputStream.read(cBuffer.get(), static_cast<std::streamsize>(audioChunkSize_));
+    inputStream.read(cBuffer.get(), static_cast<std::streamsize>(config_.periodSizeBytes));
     const auto bytesRead = inputStream.gcount();
     if (bytesRead == 0) {
       SPDLOG_ERROR("Hit unexpected EOF on audio input");
       break;
-    } else if (bytesRead != static_cast<std::streamsize>(audioChunkSize_)) {
-      SPDLOG_ERROR("Short read: should've read {} bytes, only read {}", audioChunkSize_, bytesRead);
+    } else if (bytesRead != static_cast<std::streamsize>(config_.periodSizeBytes)) {
+      SPDLOG_ERROR("Short read: should've read {} bytes, only read {}", config_.periodSizeBytes,
+                   bytesRead);
     }
 
     // Write out a frame of data from the buffer into the soundcard

@@ -8,8 +8,16 @@
 #include <spdlog/spdlog.h>
 
 #include "AlsaInterface.hpp"
+#include "Utils.hpp"
 
 namespace mik {
+
+void AlsaInterface::startRecording() {
+  // Create the thread objec which will start off the recording
+  shouldRecord_ = true;
+  recordingThread_ = std::thread(&AlsaInterface::record, this);
+  SPDLOG_INFO("Recording started.");
+}
 
 void AlsaInterface::stopRecording() {
   shouldRecord_ = false;
@@ -22,18 +30,11 @@ void AlsaInterface::stopRecording() {
   SPDLOG_INFO("Recording stopped.");
 }
 
-void AlsaInterface::startRecording() {
-  // Create the thread objec which will start off the recording
-  shouldRecord_ = true;
-  recordingThread_ = std::thread(&AlsaInterface::record, this);
-  SPDLOG_INFO("Recording started.");
-}
-
 void AlsaInterface::record() {
   SPDLOG_DEBUG("record(): start");
 
   // Allocate a chunk of data for the buffer and wrap it in a unique_ptr
-  auto cBuffer = std::make_unique<uint8_t[]>(audioChunkSize_);
+  auto cBuffer = std::make_unique<uint8_t[]>(config_.periodSizeBytes);
 
   while (shouldRecord_) {
 
@@ -59,7 +60,8 @@ void AlsaInterface::record() {
       std::scoped_lock<std::mutex> lock(audioChunkMutex_);
 
       // Pointer arithmetic, messy but i want to move the data from the C-style array into audioData
-      std::move(cBuffer.get(), cBuffer.get() + audioChunkSize_, std::back_inserter(audioData_));
+      std::move(cBuffer.get(), cBuffer.get() + config_.periodSizeBytes,
+                std::back_inserter(audioData_));
     }
   }
 
@@ -101,9 +103,10 @@ std::vector<char> AlsaInterface::captureAudioUntilUserExit() {
 }
 
 // Capture fixed duration of audio
-void AlsaInterface::captureAudio(std::ostream& outputStream) {
+void AlsaInterface::captureAudioFixedSize(std::ostream& outputStream, unsigned int seconds) {
   SPDLOG_INFO("Starting capture...");
 
+  const auto recordingDuration_us = Utils::secondsToMicroseconds(seconds);
   if (!this->isConfiguredForCapture()) {
     SPDLOG_DEBUG("Interface was not configured for audio capture! Re-configuring...");
     config_.streamConfig = StreamConfig::CAPTURE;
@@ -112,19 +115,17 @@ void AlsaInterface::captureAudio(std::ostream& outputStream) {
   }
 
   SPDLOG_INFO("Calculating amount of recording loops...");
-  SPDLOG_INFO("Recording duration is {} microseconds ({} seconds as integer division)",
-              config_.recordingDuration_us,
-              AlsaConfig::microsecondsToSeconds(config_.recordingDuration_us));
-  SPDLOG_INFO("Recording period is {} microseconds ({} seconds as integer division)",
-              config_.recordingPeriod_us,
-              AlsaConfig::microsecondsToSeconds(config_.recordingPeriod_us));
+  SPDLOG_INFO("Entire recording duration is {} microseconds ({} seconds as integer division)",
+              recordingDuration_us, seconds);
+  SPDLOG_INFO("Each period is {} microseconds ({} seconds as integer division)",
+              config_.periodDuration_us, Utils::microsecondsToSeconds(config_.periodDuration_us));
 
-  int loopsLeft = config_.calculateRecordingLoops();
+  int loopsLeft = config_.calculateRecordingLoops(recordingDuration_us);
 
   auto startTime = std::chrono::steady_clock::now();
 
   // The output stream wants this to be a char instead of uint_8, just make it a char
-  auto cBuffer = std::make_unique<char[]>(audioChunkSize_);
+  auto cBuffer = std::make_unique<char[]>(config_.periodSizeBytes);
 
   SPDLOG_INFO("Will be running {} loops", loopsLeft);
   SPDLOG_INFO("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
@@ -146,14 +147,14 @@ void AlsaInterface::captureAudio(std::ostream& outputStream) {
       continue;
     }
 
-    outputStream.write(cBuffer.get(), static_cast<std::streamsize>(audioChunkSize_));
+    outputStream.write(cBuffer.get(), static_cast<std::streamsize>(config_.periodSizeBytes));
   }
 
   auto endTime = std::chrono::steady_clock::now();
   const auto actualDuration =
       std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
   SPDLOG_INFO("Capture was configured to take {} milliseconds, it actually took {} ms",
-              config_.recordingDuration_us / 1000, actualDuration);
+              recordingDuration_us / 1000, actualDuration);
 
   snd_pcm_drop(pcmHandle_.get());
   SPDLOG_INFO("Finished audio capture");

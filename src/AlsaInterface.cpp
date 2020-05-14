@@ -53,56 +53,55 @@ Status AlsaInterface::configureInterface() {
   }
 
   SPDLOG_INFO("Allocating memory for parameters...");
-  {
-    snd_pcm_hw_params_t* params = nullptr;
-    snd_pcm_hw_params_alloca(&params);
-    params_ = params; // Grab the pointer we got from the ALSA macro
-  }
+
+  // TODO make an RAII wrapper, although it's a bit difficult as snd_pcm_hw_params is opaque from
+  // this level of abstraction
+  snd_pcm_hw_params_t* params = nullptr;
+  // This macro allocates the memory
+  snd_pcm_hw_params_alloca(&params);
 
   SPDLOG_INFO("Setting sound card parameters...");
-  snd_pcm_hw_params_any(pcmHandle_.get(), params_);
-  snd_pcm_hw_params_set_format(pcmHandle_.get(), params_, config_.format);
-  snd_pcm_hw_params_set_channels(pcmHandle_.get(), params_,
+  snd_pcm_hw_params_any(pcmHandle_.get(), params);
+  snd_pcm_hw_params_set_format(pcmHandle_.get(), params, config_.format);
+  snd_pcm_hw_params_set_channels(pcmHandle_.get(), params,
                                  static_cast<unsigned int>(config_.channelConfig));
-  snd_pcm_hw_params_set_access(pcmHandle_.get(), params_, config_.accessType);
+  snd_pcm_hw_params_set_access(pcmHandle_.get(), params, config_.accessType);
 
-  // Set sampling rate
   int dir = 0;
+  // Set sampling rate
   unsigned int val = config_.samplingFreq_Hz;
   SPDLOG_INFO("Attempting to get a sampling freq of {} Hz", val);
-  snd_pcm_hw_params_set_rate_near(pcmHandle_.get(), params_, &val, &dir);
+  snd_pcm_hw_params_set_rate_near(pcmHandle_.get(), params, &val, &dir);
   // Check what rate we actually got
   SPDLOG_INFO("Got a sampling freq of {} Hz", val);
 
   // Set period size to X frames
   SPDLOG_INFO("Attempting to set period size to {} frames", config_.frames);
-  snd_pcm_hw_params_set_period_size_near(pcmHandle_.get(), params_, &(config_.frames), &dir);
+  snd_pcm_hw_params_set_period_size_near(pcmHandle_.get(), params, &(config_.frames), &dir);
   SPDLOG_INFO("Period size was set to {} frames", config_.frames);
 
   // Write parameters to the driver
-  int status = snd_pcm_hw_params(pcmHandle_.get(), params_);
+  int status = snd_pcm_hw_params(pcmHandle_.get(), params);
   if (status != 0) {
     SPDLOG_ERROR("Could not write parameters to the sound driver!");
     SPDLOG_ERROR("snd_pcm_hw_params() errno:{}", std::strerror(errno));
+    snd_pcm_hw_params_free(params);
     return Status::ERROR;
   }
 
   // Check how many frames we actually got
-  snd_pcm_hw_params_get_period_size(params_, &(config_.frames), &dir);
+  snd_pcm_hw_params_get_period_size(params, &(config_.frames), &dir);
   SPDLOG_INFO("Retrieved period size of {} frames", config_.frames);
 
   // Figure out how long a period is
-  snd_pcm_hw_params_get_period_time(params_, &(config_.recordingPeriod_us), &dir);
-  if (config_.recordingPeriod_us == 0) {
-    SPDLOG_ERROR("Can't divide by a recording period of 0ms!");
-    std::exit(1);
+  snd_pcm_hw_params_get_period_time(params, &(config_.periodDuration_us), &dir);
+  if (config_.periodDuration_us == 0) {
+    SPDLOG_ERROR("Can't divide by a recording period of 0us!");
+    snd_pcm_hw_params_free(params);
+    return Status::ERROR;
   }
-  SPDLOG_INFO("Retrieved recording period of {} ms", config_.recordingPeriod_us);
-
-  audioChunkSize_ = config_.frames * 4; // 2 bytes/sample, 2 channel
-
-  SPDLOG_INFO("Audio chunk size is {} bytes", audioChunkSize_);
-
+  SPDLOG_INFO("Retrieved period duration of {} us", config_.periodDuration_us);
+  snd_pcm_hw_params_free(params);
   return Status::SUCCESS;
 }
 } // namespace mik

@@ -43,43 +43,31 @@ struct SndPcmDeleter {
 };
 
 struct AlsaConfig {
-  // Is this samples per second (Hz)? I can't quite figure this out.
   // 44,100 Hz is CD-quality and too high for ASR
-  // 16,000 Hz would be best
-  unsigned int samplingFreq_Hz = 44100;
-  // Not necessary if recording is indefinite
-  unsigned int recordingDuration_us = 5000000;
-  // Not necessary if recording is indefinite
-  unsigned int recordingPeriod_us = 735;
+  // 16,000 Hz would be best, although the fisher-english corpus is recorded with 8,000 Hz
+  // and that's what I'm using right now
+  unsigned int samplingFreq_Hz = 8000;
+  unsigned int periodDuration_us = 735;
 
+  ChannelConfig channelConfig = ChannelConfig::STEREO;
   snd_pcm_uframes_t frames = 32;
   snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
+  // 2 bytes/sample (since signed 16-bit), and 2 channel (since it's Stereo);
+  // Could this be done programatically instead of hard-coded? Yes
+  // Will I write a function for that? No, I probably won't even adjust these settings.
+  size_t periodSizeBytes = frames * 4;
   snd_pcm_access_t accessType = SND_PCM_ACCESS_RW_INTERLEAVED;
-  ChannelConfig channelConfig = ChannelConfig::STEREO; // Stereo
   StreamConfig streamConfig = StreamConfig::CAPTURE;
   std::string pcmDesc = static_cast<std::string>(defaultHw);
 
-  static unsigned int microsecondsToSeconds(unsigned int microseconds) {
-    return static_cast<unsigned int>(
-        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::microseconds(microseconds))
-            .count());
-  };
-  static unsigned int secondsToMicroseconds(unsigned int seconds) {
-    return static_cast<unsigned int>(
-        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds(seconds))
-            .count());
-  };
-
-  int calculateRecordingLoops() {
-    return static_cast<int>(recordingDuration_us / recordingPeriod_us);
+  inline int calculateRecordingLoops(unsigned int recordingDuration_us) {
+    return static_cast<int>(recordingDuration_us / periodDuration_us);
   }
 
   // Isn't there a way to automatically generate this?
   inline bool operator==(const AlsaConfig& rhs) const noexcept {
-    return samplingFreq_Hz == rhs.samplingFreq_Hz &&
-           recordingDuration_us == rhs.recordingDuration_us &&
-           recordingPeriod_us == rhs.recordingPeriod_us && frames == rhs.frames &&
-           format == rhs.format && accessType == rhs.accessType &&
+    return samplingFreq_Hz == rhs.samplingFreq_Hz && periodDuration_us == rhs.periodDuration_us &&
+           frames == rhs.frames && format == rhs.format && accessType == rhs.accessType &&
            channelConfig == rhs.channelConfig && streamConfig == rhs.streamConfig &&
            pcmDesc == rhs.pcmDesc;
   }
@@ -91,9 +79,9 @@ public:
   AlsaInterface(const AlsaConfig& alsaConfig);
   ~AlsaInterface();
 
-  void captureAudio(std::ostream& outputStream);
+  void captureAudioFixedSize(std::ostream& outputStream, unsigned int seconds);
   std::vector<char> captureAudioUntilUserExit();
-  void playbackAudio(std::istream& inputStream);
+  void playbackAudioFixedSize(std::istream& inputStream, unsigned int seconds);
   Status updateConfiguration(const AlsaConfig& alsaConfig);
 
   Status configureInterface();
@@ -109,7 +97,10 @@ public:
   }
   void stopRecording();
   void startRecording();
-  std::vector<char> getAudioData() { return audioData_; }
+  std::vector<char> getAudioData() {
+    std::scoped_lock<std::mutex> lock(audioChunkMutex_);
+    return audioData_;
+  }
 
 private:
   snd_pcm_t* openSoundDevice(std::string_view pcmDesc, StreamConfig streamConfig);
@@ -122,13 +113,7 @@ private:
 
   std::mutex audioChunkMutex_;
   std::vector<char> audioData_;
-
-  std::unique_ptr<char> inputBuffer_;
-  // Have to make params a raw pointer since the underlying type is opaque (apparently)
-  snd_pcm_hw_params_t* params_;
   std::unique_ptr<snd_pcm_t, SndPcmDeleter> pcmHandle_;
-  // Amount of bytes that will be written to/read form each cycle
-  size_t audioChunkSize_;
 };
 
 } // namespace mik

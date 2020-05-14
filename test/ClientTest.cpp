@@ -35,7 +35,13 @@ TEST(ClientTest, REQUIRES_SERVER_SendAudioFileToServer) {
 
   mik::DecoderClient client;
   // client.connect("192.168.1.165", "5050");
-  ASSERT_NO_THROW(client.connect("127.0.0.1", "5050"));
+  try {
+    client.connect("127.0.0.1", "5050");
+  } catch (const boost::system::system_error& e) {
+    FAIL() << "Exception:" << e.what();
+  } catch (const std::exception& e) {
+    FAIL() << "Exception:" << e.what();
+  }
   client.sendAudioToServer(audioBuffer);
 
   const auto result = client.getResultFromServer();
@@ -46,7 +52,6 @@ TEST(ClientTest, REQUIRES_SERVER_SendAudioFileToServer) {
 TEST(AlsaTest, USER_INPUT_CaptureAudioInBuffer) {
 
   mik::AlsaConfig config;
-  config.recordingDuration_us = mik::AlsaConfig::secondsToMicroseconds(2);
   mik::AlsaInterface alsa(config);
 
   const auto audio = alsa.captureAudioUntilUserExit();
@@ -58,13 +63,13 @@ TEST(AlsaTest, USER_INPUT_CaptureAudioToFile) {
 
   const std::string outputAudio = "unittestCapture.raw";
   mik::AlsaConfig config;
-  config.recordingDuration_us = mik::AlsaConfig::secondsToMicroseconds(2);
   mik::AlsaInterface alsa(config);
 
   std::fstream outputStream(outputAudio, outputStream.trunc | outputStream.out);
   ASSERT_TRUE(outputStream.is_open());
 
-  alsa.captureAudio(outputStream);
+  constexpr unsigned int secondsToRecord = 5;
+  alsa.captureAudioFixedSize(outputStream, secondsToRecord);
 
   // Clean up
   std::filesystem::path testOutput{outputAudio};
@@ -75,13 +80,13 @@ TEST(AlsaTest, USER_INPUT_PlaybackAudioFromFile) {
 
   const std::string inputAudio = "unittestPlayback.raw";
   mik::AlsaConfig config;
-  config.recordingDuration_us = mik::AlsaConfig::secondsToMicroseconds(1);
   mik::AlsaInterface alsa(config);
 
   std::fstream inputStream(inputAudio, inputStream.in);
   ASSERT_TRUE(inputStream.is_open());
 
-  alsa.playbackAudio(inputStream);
+  constexpr unsigned int secondsToRecord = 5;
+  alsa.playbackAudioFixedSize(inputStream, secondsToRecord);
 }
 
 // This requires the tcp decoding server to be up and also requires someone to press "enter"
@@ -97,7 +102,13 @@ TEST(ClientTest, USER_INPUT_CaptureUserInputAndSendToServer) {
   mik::DecoderClient client;
   // Could also do localhost "127.0.0.1"
   // client.connect("192.168.1.165", "5050");
-  client.connect("127.0.0.1", "5050");
+  try {
+    client.connect("127.0.0.1", "5050");
+  } catch (const boost::system::system_error& e) {
+    FAIL() << "Exception:" << e.what();
+  } catch (const std::exception& e) {
+    FAIL() << "Exception:" << e.what();
+  }
   client.sendAudioToServer(audioBuffer);
 
   const auto result = client.getResultFromServer();

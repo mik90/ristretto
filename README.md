@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/mik90/ristretto.svg?branch=develop)](https://travis-ci.org/mik90/ristretto)
+
 This is a frontend for a kaldi TCP server
 should just read in audio from ALSA, then feed it to a server
 

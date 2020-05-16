@@ -1,27 +1,29 @@
-add_executable(AlsaInterface 
-  main.cpp
-  AlsaCapture.cpp
-  AlsaPlayback.cpp
-  AlsaInterface.cpp
-  )
+add_library(
+  AlsaInterface STATIC
+    AlsaCapture.cpp
+    AlsaPlayback.cpp
+    AlsaInterface.cpp
+    DecoderClient.cpp
+    Utils.cpp
+)
+# Turn spdlog onto the DEBUG level
+target_compile_definitions(AlsaInterface PUBLIC SPDLOG_ACTIVE_LEVEL=1)
 
 target_link_libraries(
-  AlsaInterface PRIVATE project_options project_warnings
-                CONAN_PKG::docopt.cpp
-                CONAN_PKG::fmt
-                CONAN_PKG::spdlog
-                #${CONAN_LIB_DIRS_ABSEIL}/
-                asound
-                )
+  AlsaInterface PUBLIC project_options project_warnings
+    CONAN_PKG::fmt
+    CONAN_PKG::spdlog
+    CONAN_PKG::boost
+    asound
+)
 
-add_executable(DecoderTest 
-  DecoderInterface.cpp
-  )
+
+add_executable(
+  AlsaInterfaceCli
+   main.cpp)
 
 target_link_libraries(
-  DecoderTest PRIVATE project_options project_warnings
-                CONAN_PKG::docopt.cpp
-                CONAN_PKG::fmt
-                CONAN_PKG::spdlog
-                CONAN_PKG::boost
-                )
+  AlsaInterfaceCli PRIVATE project_options project_warnings
+    CONAN_PKG::docopt.cpp
+    AlsaInterface
+)

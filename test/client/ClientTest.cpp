@@ -90,7 +90,7 @@ TEST(AlsaTest, USER_INPUT_PlaybackAudioFromFile) {
 }
 
 // This requires the tcp decoding server to be up and also requires someone to press "enter"
-TEST(ClientTest, USER_INPUT_CaptureUserInputAndSendToServer) {
+TEST(ClientTest, REQUIRES_SERVER_USER_INPUT_CaptureUserInputAndSendToServer) {
 
   mik::AlsaConfig config;
   config.samplingFreq_Hz = 8000;

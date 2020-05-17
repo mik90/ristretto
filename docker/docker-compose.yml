@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+    serverkaldi:
+        image: ristretto:latest
+        ports:
+            - 5050:5050
+        volumes:
+            - ../../support-kaldi:/opt/support-kaldi
+            - ../../src/server:/opt/ristretto
+        working_dir: /opt/ristretto
+        entrypoint: bash
+        build:
+            context: .
+            dockerfile: Dockerfile

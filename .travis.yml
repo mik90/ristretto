@@ -3,12 +3,22 @@ os: linux
 language: python
 python: "3.7"
 dist: bionic
-compiler:
-  - gcc
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+      - sourceline: 'deb https://apt.kitware.com/ubuntu/ bionic main'
+        key_url: 'https://apt.kitware.com/keys/kitware-archive-latest.asc'
+    packages:
+      - gcc-9
+      - g++-9
+      - cmake
+    env:
+      - COMPILER_EVAL="CC=gcc-9 && CXX=g++-9"
+before_install:
+    - eval "${COMPILER_EVAL}"
 install:
-# Install conan
   - pip install conan
-# Automatic detection of your arch, compiler, etc.
   - conan user
 script:
   - conan install .

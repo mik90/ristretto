@@ -1,12 +1,14 @@
 version: "3.8"
 services:
-    serverkaldi:
+    server:
         image: ristretto:latest
         ports:
             - 5050:5050
         volumes:
-            - ../../support-kaldi:/opt/support-kaldi
-            - ../../src/server:/opt/ristretto
+            - ../:/opt/ristretto
+            # Exclude the build and .vscode folders from being mounted
+            - /opt/ristretto/build/
+            - /opt/ristretto/.vscode/
         working_dir: /opt/ristretto
         entrypoint: bash
         build:

@@ -13,7 +13,7 @@ addons:
       - gcc-9
       - g++-9
       - cmake
-      - ninja
+      - ninja-build
     env:
       - COMPILER_EVAL="CC=gcc-9 && CXX=g++-9"
 before_install:

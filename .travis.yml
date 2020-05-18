@@ -3,6 +3,9 @@ os: linux
 language: python
 python: "3.7"
 dist: bionic
+cache:
+  directories:
+    - $HOME/.conan/data
 addons:
   apt:
     sources:
@@ -22,7 +25,6 @@ install:
   - pip install conan
   - conan user
 script:
-  - conan install .
   - mkdir build
   - cd build
   - cmake .. -G "Ninja"

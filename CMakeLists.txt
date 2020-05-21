@@ -27,6 +27,9 @@ enable_doxygen()
 include(cmake/StaticAnalyzers.cmake)
 
 option(BUILD_SERVER "Build the decoding server" OFF)
+option(BUILD_CLIENT "Build the decoding client" ON)
+
+
 option(BUILD_SHARED_LIBS "Enable compilation of shared libraries" OFF)
 option(ENABLE_TESTING "Enable Test Builds" ON)
 

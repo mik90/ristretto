@@ -27,6 +27,6 @@ install:
 script:
   - mkdir build
   - cd build
-  - cmake .. -G "Ninja" --quiet # Do configuration quietly, Travis-CI complains about large log files
+  - cmake .. -G "Ninja" > /dev/null # Do configuration quietly, Travis-CI complains about large log files
   - cmake --build .
   - ctest -E "USER_INPUT|REQUIRES_SERVER" .

@@ -17,3 +17,13 @@ should just read in audio from ALSA, then feed it to a server
         - /opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/online.conf.conf
 - Maybe put this in a docker container?
 - Can do "--device /dev/snd" to share the soundcards
+
+## Clang-format
+- Using 3 versions, one in container, one on Arch, one on Gentoo
+- Gentoo is 9.0.1
+- Try to find oldest setup
+- Based on LLVM, changed to:
+    - TabWidth = 4
+    - PointerAlignment = Left
+    - ColumnLimit = 100
+    - BraceWrapping: AfterControlStatement = true

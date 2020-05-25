@@ -17,6 +17,8 @@ addons:
       - g++-9
       - cmake
       - ninja-build
+      - alsa-utils
+      - grpc 
     env:
       - COMPILER_EVAL="CC=gcc-9 && CXX=g++-9"
 before_install:

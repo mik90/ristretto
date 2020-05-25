@@ -1,5 +1,7 @@
 {
     "C_Cpp.intelliSenseEngineFallback": "Enabled",
     "cmake.configureOnOpen": false,
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
 }

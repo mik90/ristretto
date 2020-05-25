@@ -13,19 +13,9 @@ include(${CMAKE_BINARY_DIR}/conan.cmake)
 conan_add_remote(NAME bincrafters URL
                  https://api.bintray.com/conan/bincrafters/public-conan)
 
-conan_cmake_run(
-  REQUIRES
-  ${CONAN_EXTRA_REQUIRES}
-  gtest/1.10.0
-  docopt.cpp/0.6.2
-  fmt/6.2.0
-  spdlog/1.5.0
-  boost/1.71.0
-#  abseil/20200205
-  OPTIONS
-  ${CONAN_EXTRA_OPTIONS}
+conan_cmake_run(CONANFILE conanfile.py
   BASIC_SETUP
   CMAKE_TARGETS # individual targets to link to
-  BUILD
-  missing)
+  BUILD missing
+)
 endmacro()

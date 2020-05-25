@@ -13,7 +13,8 @@ RUN apt update \
   && apt-add-repository 'deb https://apt.kitware.com/ubuntu/ xenial main' \
   && apt update \
   && apt install -y --no-install-recommends \ 
-  gcc-9 g++-9 cmake ninja curl clang-format libopenblas-dev
+  gcc-9 g++-9 cmake ninja curl clang-format-8 libopenblas-dev \
+  grpc
   
 
 # When building Kaldi with CMake:

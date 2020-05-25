@@ -1,32 +1,28 @@
 project(client)
 
-add_library(
-  AlsaInterface STATIC
-    AlsaCapture.cpp
-    AlsaPlayback.cpp
-    AlsaInterface.cpp
-    DecoderClient.cpp
-    Utils.cpp
+add_subdirectory(AlsaInterface)
+
+add_executable(RistrettoClient
+  RistrettoClient.cpp
+  main.cpp
+  ${ristretto_proto_srcs}
+  ${ristretto_grpc_srcs}
 )
 
-# Turn spdlog onto the DEBUG level
-target_compile_definitions(AlsaInterface PUBLIC SPDLOG_ACTIVE_LEVEL=1)
-
-target_link_libraries(
-  AlsaInterface PUBLIC project_options project_warnings
-    CONAN_PKG::fmt
-    CONAN_PKG::spdlog
-    CONAN_PKG::boost
-    asound
+target_include_directories(RistrettoClient PRIVATE
+  "${CMAKE_CURRENT_BINARY_DIR}"
+  AlsaInterface
 )
 
-
-add_executable(
-  AlsaInterfaceCli
-   main.cpp)
-
-target_link_libraries(
-  AlsaInterfaceCli PRIVATE project_options project_warnings
-    CONAN_PKG::docopt.cpp
+target_link_libraries(RistrettoClient PRIVATE
+    project_options
+    project_warnings
+    # Internal lib
     AlsaInterface
+    # Conan packages
+    CONAN_PKG::docopt.cpp
+    # gRPC
+    gRPC::grpc++_unsecure
+    # System-included protobuf
+    protobuf
 )

@@ -10,15 +10,16 @@ add_executable(RistrettoClient
 )
 
 target_include_directories(RistrettoClient PRIVATE
-  "${CMAKE_CURRENT_BINARY_DIR}"
+  "${CMAKE_BINARY_DIR}/src"
   AlsaInterface
 )
 
 target_link_libraries(RistrettoClient PRIVATE
     project_options
     project_warnings
-    # Internal lib
+    # Internal libs
     AlsaInterface
+    grpcObjects
     # Conan packages
     CONAN_PKG::docopt.cpp
     # gRPC

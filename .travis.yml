@@ -18,7 +18,8 @@ addons:
       - cmake
       - ninja-build
       - alsa-utils
-      - grpc 
+      - libgrpc++-dev 
+      - protobuf-compiler-grpc
     env:
       - COMPILER_EVAL="CC=gcc-9 && CXX=g++-9"
 before_install:

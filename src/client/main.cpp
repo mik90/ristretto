@@ -1,23 +1,15 @@
-#include <thread>
-#include <cstdio>
+#include <iostream>
 
 #include "RistrettoClient.hpp"
+#include <grpcpp/grpcpp.h>
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
-    using namespace mik;
+  using namespace mik;
 
-    std::string_view hostAndPort = "localhost:5050";
-    RistrettoClient client(grpc::CreateChannel(hostAndPort.c_str()), grpc::InsecureChannelCredentials());
+  RistrettoClient client(grpc::CreateChannel("localhost:5050", grpc::InsecureChannelCredentials()));
 
-    // Indefinite loop
-    std::thread t = std::thread(^RistrettoClient::asyncCompleteRpc, &client);
-
-    for (int i = 0; i < 100; i++) {
-        std::string user("world " + std::to_string(i));
-        client.sayHello(user);
-    }
-
-    std::printf("Press ctrl-c to quit\n");
-    t.join();
-    return 0;
+  std::string user("world");
+  std::string reply = client.sendHello(user);
+  std::cout << "Received:" << reply << std::endl;
+  return 0;
 }

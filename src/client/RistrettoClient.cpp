@@ -11,39 +11,32 @@
 
 namespace mik {
 
-RistrettoClient::RistrettoClient() : stub_(ristretto::NewStub(channel)) {};
-  SPDLOG_INFO("--------------------------------------------");
-  SPDLOG_INFO("RistrettoClient created.");
-  SPDLOG_INFO("--------------------------------------------");
-}
-
-void RistrettoClient::sendHello(const std::string& user) {
-  Greeter::HelloRequest request;
+std::string RistrettoClient::sendHello(const std::string& user) {
+  ristretto::HelloRequest request;
   request.set_name(user);
 
-  AsyncClientCall* call = new AsyncClientCall;
+  ristretto::HelloReply reply;
+  grpc::ClientContext context;
+  grpc::CompletionQueue cq;
+  grpc::Status status;
 
-  call->responseReader = stub_->sayHello(&call->context, request, &compQueue_);
-  
-  call->responseReader->Finish(&call->reply, &call->status, static_cast<void*>(call));
-}
+  std::unique_ptr<grpc::ClientAsyncResponseReader<ristretto::HelloReply>> rpc(
+      stub_->PrepareAsyncSayHello(&context, request, &cq));
 
-void RistrettoClient::asyncCompleteRpc() {
+  rpc->StartCall();
+  rpc->Finish(&reply, &status, reinterpret_cast<void*>(1));
   void* got_tag;
   bool ok = false;
 
-  while (compQueue_.Next(&got_tag, &ok)) {
-    AsyncClientCall* call = static_cast<AsyncClientCall*>(got_tag);
-    GPR_ASSERT(ok);
-    if (call->status.ok()) {
-      SPDLOG_INFO("Greeter received: {}", call->reply.message());
-    }
-    else {
-      SPDLOG_ERROR("RPC failed.");
-    }
-    delete call;
-  }
+  GPR_ASSERT(cq.Next(&got_tag, &ok));
+  GPR_ASSERT(got_tag == reinterpret_cast<void*>(1));
+  GPR_ASSERT(ok);
 
+  if (status.ok()) {
+    return reply.message();
+  } else {
+    return "RPC failed.";
+  }
 }
 
 // Strip all the newlines until we get to text

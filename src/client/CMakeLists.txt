@@ -19,11 +19,10 @@ target_link_libraries(RistrettoClient PRIVATE
     project_warnings
     # Internal libs
     AlsaInterface
-    grpcObjects
     # Conan packages
     CONAN_PKG::docopt.cpp
-    # gRPC
-    gRPC::grpc++_unsecure
-    # System-included protobuf
+    # System-included gRPC/protobuf
     protobuf
+    grpc++_unsecure
+    grpc
 )

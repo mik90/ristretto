@@ -1,7 +1,11 @@
 version: "3.8"
 services:
-    server:
-        image: ristretto:latest
+    # Note: May need to "run" using --service-ports
+    client:
+        entrypoint: bash
+        image: ristretto-client:latest
+        devices:
+            - "/dev/snd:/dev/snd" # Haven't tested this yet, should be able to get sound input from ALSA
         ports:
             - 5050:5050
         volumes:
@@ -9,9 +13,26 @@ services:
             # Exclude the build and .vscode folders from being mounted
             - /opt/ristretto/build/
             - /opt/ristretto/.vscode/
-        working_dir: /opt/ristretto
-        entrypoint: bash
+            # Exclude the server's source code, shouldn't be configured to build it anyways
+            - /opt/ristretto/src/server/
+        working_dir: /opt/ristretto/build
         build:
             context: .
-            dockerfile: Dockerfile
-            #target: buildenv
+            dockerfile: ../src/client/docker/Dockerfile
+    server:
+        # Requires a computer with CUDA support
+        entrypoint: bash
+        image: ristretto-server:latest
+        ports:
+            - 5050:5050
+        volumes:
+            - ../:/opt/ristretto
+            # Exclude the build and .vscode folders from being mounted
+            - /opt/ristretto/build/
+            - /opt/ristretto/.vscode/
+            # Exclude the clients's source code, shouldn't be configured to build it anyways
+            - /opt/ristretto/src/client/
+        working_dir: /opt/ristretto/build
+        build:
+            context: .
+            dockerfile: ../src/server/docker/Dockerfile

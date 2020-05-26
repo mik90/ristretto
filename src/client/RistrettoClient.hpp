@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include <grpcpp/grpcpp.h>
+#include <grpc++/grpc++.h>
 
 #include "AlsaInterface.hpp"
 

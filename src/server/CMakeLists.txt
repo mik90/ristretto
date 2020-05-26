@@ -24,8 +24,8 @@ target_link_libraries(RistrettoServer PRIVATE
 	project_warnings
 
 	# gRPC/Protobuf
-    protobuf::libprotobuf
-    gRPC::grpc++_unsecure
+    protobuf
+    gRPC
 
     # Libs from conan
     CONAN_PKG::fmt

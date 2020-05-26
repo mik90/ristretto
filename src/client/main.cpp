@@ -1,7 +1,6 @@
 #include <iostream>
 
 #include "RistrettoClient.hpp"
-#include <grpcpp/grpcpp.h>
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   using namespace mik;

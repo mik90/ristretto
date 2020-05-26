@@ -1,4 +1,0 @@
-# Don't include build files from the host
-#build/*
-#\.vscode/*
-#logs/*

@@ -1,16 +1,21 @@
 include(GoogleTest)
 
-add_executable(ClientTest ClientTest.cpp)
+add_executable(ClientTest
+ main.cpp
+ AlsaTest.cpp
+ #ClientTest.cpp # This isn't quite stable yet
+)
 
-target_link_libraries(
-  ClientTest PRIVATE project_options project_warnings
+target_link_libraries(ClientTest PRIVATE
+    project_options
+    project_warnings
     AlsaInterface
     CONAN_PKG::gtest
 )
 
-target_include_directories(
-  ClientTest PRIVATE
+target_include_directories(ClientTest PRIVATE
    ${client_SOURCE_DIR}
+   ${client_SOURCE_DIR}/AlsaInterface
 )
 add_custom_command(TARGET ClientTest POST_BUILD 
   COMMAND "${CMAKE_COMMAND}" -E copy 

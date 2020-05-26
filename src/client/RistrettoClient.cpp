@@ -4,6 +4,7 @@
 
 #include <fmt/core.h>
 #include <fmt/locale.h>
+#include <grpc/support/log.h>
 #include <spdlog/spdlog.h>
 
 #include "RistrettoClient.hpp"
@@ -21,9 +22,8 @@ std::string RistrettoClient::sendHello(const std::string& user) {
   grpc::Status status;
 
   std::unique_ptr<grpc::ClientAsyncResponseReader<ristretto::HelloReply>> rpc(
-      stub_->PrepareAsyncSayHello(&context, request, &cq));
+      stub_->AsyncSayHello(&context, request, &cq));
 
-  rpc->StartCall();
   rpc->Finish(&reply, &status, reinterpret_cast<void*>(1));
   void* got_tag;
   bool ok = false;

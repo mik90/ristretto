@@ -5,7 +5,7 @@ ENV force_color_prompt=yes
 
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
-  gcc g++ \
+  gcc g++ ccache \
   git \
   python3 python3-distutils \
   zlib1g-dev \
@@ -52,4 +52,5 @@ FROM buildenv as runenv
 #RUN chown client:wheel /opt/ristretto/build && chown client:wheel /opt/ristretto/.vscode
 #USER client:wheel
 WORKDIR /opt/ristretto
+RUN ./runProtoc.sh
 ENTRYPOINT ["cmake", "..", "-DBUILD_SERVER=ON", "-DBUILD_CLIENT=OFF", "-DWARNINGS_AS_ERRORS=OFF", "-DCMAKE_BUILD_TYPE=Debug", "-G", "Ninja"]

@@ -36,3 +36,4 @@ services:
         build:
             context: .
             dockerfile: ../src/server/docker/Dockerfile
+

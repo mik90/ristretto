@@ -69,7 +69,7 @@ RUN apt update \
   && apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main' \
   && apt update \
   && apt install -y --no-install-recommends \ 
-  gcc-9 g++-9 cmake ninja curl libopenblas-dev \
+  gcc-9 g++-9 cmake ccache ninja curl libopenblas-dev \
   python3 python3-distutils
 
 # After building kaldi, set gcc-9 as the default

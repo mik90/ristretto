@@ -1,8 +1,5 @@
 FROM alpine:latest as buildenv
 
-# Set up the ristretto build environment
-ENV force_color_prompt=yes
-
 RUN apk add --update \
   bash \
   gcc g++ ccache cmake \

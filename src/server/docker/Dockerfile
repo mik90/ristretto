@@ -45,7 +45,7 @@ WORKDIR /opt/kaldi/
 #   - Are GCC 9 and 5.4 even ABI compatible?
 # - Kaldi defaults to OpenBLAS in CMake, so that requires an additiona package
 RUN apt-get install -y --no-install-recommends \
-  libopenblas-dev
+  cmake libopenblas-dev
 WORKDIR /opt/kaldi
 RUN mkdir build
 WORKDIR /opt/kaldi/build
@@ -102,7 +102,28 @@ RUN utils/mkgraph.sh --self-loop-scale 1.0 data/lang_pp_test exp/tdnn_7b_chain_o
 # I'd assume it's an issue on my end. Enabling downsampling will 'fix' it
 RUN echo "--allow_downsample=true" >> /opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/mfcc.conf
 
-FROM model-setup as runenv
+FROM model-setup as grpc-build
+# Reference: https://github.com/npclaudiu/grpc-cpp-docker/blob/master/Dockerfile
+RUN apt update \
+  && apt install -y --no-install-recommends \
+  autoconf automake \
+  build-essential libtool \
+  pkg-config unzip
+ENV GRPC_RELEASE_TAG v1.128.2
+
+RUN git clone -b ${GRPC_RELEASE_TAG} https://github.com/grpc/grpc /opt/grpc \
+  && /opt/grpc \
+  && git submodule update --init --recursive
+
+RUN cd /opt/grpc/third_party/protobuf \
+  && ./autogen.sh && ./configure --enable-shared \
+  && make -j && make -j check && make install && make clean \
+  && ldconfig
+
+RUN cd /opt/grpc && make -j && make install && make clean \
+  && ldconfig
+
+FROM grpc-build as runenv
 # Be root i guess, setting up a user and avoiding things being installed in /home is super annoying
 #RUN groupadd -r wheel && useradd --no-log-init -r -g wheel server
 #RUN chown server:wheel /opt/ristretto/build

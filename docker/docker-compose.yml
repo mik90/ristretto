@@ -2,8 +2,8 @@ version: "3.8"
 services:
     # Note: May need to "run" using --service-ports
     client:
-        entrypoint: bash
-        image: ristretto-client:latest
+        entrypoint: sh
+        image: ristretto-client:latest-alpine
         devices:
             - "/dev/snd:/dev/snd" # Haven't tested this yet, should be able to get sound input from ALSA
         ports:
@@ -18,7 +18,7 @@ services:
         working_dir: /opt/ristretto/build
         build:
             context: .
-            dockerfile: ../src/client/docker/Dockerfile
+            dockerfile: ../src/client/docker/Dockerfile-Alpine
     server:
         # Requires a computer with CUDA support
         entrypoint: bash

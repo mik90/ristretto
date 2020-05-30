@@ -6,7 +6,7 @@
 namespace mik {
 
 void createLogger() {
-  static std::atomic<bool> hasBeenCalled = false;
+  static std::atomic<bool> hasBeenCalled(false);
   if (hasBeenCalled) {
     return;
   } else {

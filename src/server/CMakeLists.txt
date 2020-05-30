@@ -4,12 +4,19 @@ find_package(kaldi CONFIG REQUIRED
     PATHS ${CMAKE_SOURCE_DIR}/../kaldi/dist/lib/cmake/kaldi
 )
 
+add_library(protoObjects OBJECT
+    ${ristretto_proto_srcs}
+    ${ristretto_grpc_srcs}
+)
+target_link_libraries(protoObjects PRIVATE
+    project_options
+)
+
 add_executable(RistrettoServer 
     main.cpp
     Utils.cpp
-    KaldiInterface.cpp
-    ${ristretto_proto_srcs}
-    ${ristretto_grpc_srcs}
+    #KaldiInterface.cpp
+    RistrettoServer.cpp
 )
 
 # Turn spdlog onto the DEBUG level
@@ -20,6 +27,8 @@ target_include_directories(RistrettoServer PRIVATE
 )
 
 target_link_libraries(RistrettoServer PRIVATE
+    # Generated files throw warnings so compile them separately
+    protoObjects
     # Project settings
     project_options
 	project_warnings
@@ -27,6 +36,7 @@ target_link_libraries(RistrettoServer PRIVATE
 	# system gRPC/Protobuf
     protobuf
     grpc++_unsecure
+    gpr
 
     # Libs from conan
     CONAN_PKG::fmt

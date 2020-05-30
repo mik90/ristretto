@@ -1,4 +1,6 @@
 
+
+caches/
 build/
 logs/
 *.wav

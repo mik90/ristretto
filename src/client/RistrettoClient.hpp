@@ -8,7 +8,10 @@
 
 #include "AlsaInterface.hpp"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuseless-cast"
 #include "ristretto.grpc.pb.h"
+#pragma GCC diagnostic pop
 
 using ristretto::Greeter;
 namespace mik {

@@ -2,11 +2,17 @@ project(client)
 
 add_subdirectory(AlsaInterface)
 
+add_library(protoObjects OBJECT
+    ${ristretto_proto_srcs}
+    ${ristretto_grpc_srcs}
+)
+target_link_libraries(protoObjects PRIVATE
+    project_options
+)
+
 add_executable(RistrettoClient
   RistrettoClient.cpp
   main.cpp
-  ${ristretto_proto_srcs}
-  ${ristretto_grpc_srcs}
 )
 
 target_include_directories(RistrettoClient PRIVATE
@@ -15,6 +21,9 @@ target_include_directories(RistrettoClient PRIVATE
 )
 
 target_link_libraries(RistrettoClient PRIVATE
+    # Generated files trigger warnings, compiled them separately
+    protoObjects
+    # Project settings
     project_options
     project_warnings
     # Internal libs

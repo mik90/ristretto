@@ -1,6 +1,8 @@
 version: "3.8"
 services:
     # Note: May need to "run" using --service-ports
+    # TODO: I should probably figure out a neater way to include folder during build time
+    #       I'm relying on mounting volumes during runtime instead of managing the Dockerfile context
     client:
         entrypoint: ash
         image: ristretto-client:latest-alpine
@@ -9,16 +11,22 @@ services:
         ports:
             - 5050:5050
         volumes:
+            # Inclusions:
             - ../:/opt/ristretto
-            # Exclude the build and .vscode folders from being mounted
-            - /opt/ristretto/build/
+            - ../caches/client_build_cache:/opt/ristretto/build
+            - ../caches/client_conan_cache:/root/.conan/data
+            # Exclusions:
+            # .vscode folder
             - /opt/ristretto/.vscode/
-            # Exclude the server's source code, shouldn't be configured to build it anyways
+            # server's source code, shouldn't be configured to build it anyways
             - /opt/ristretto/src/server/
+            # server's build caches
+            - /opt/ristretto/caches/server_build_cache/
+            - /opt/ristretto/caches/server_conan_cache/
         working_dir: /opt/ristretto/build
         build:
             context: .
-            dockerfile: ../src/client/docker/Dockerfile-Alpine
+            dockerfile: ../src/client/docker/Dockerfile
     server:
         # Requires a computer with CUDA support
         entrypoint: bash
@@ -26,12 +34,18 @@ services:
         ports:
             - 5050:5050
         volumes:
+            # Inclusions:
             - ../:/opt/ristretto
-            # Exclude the build and .vscode folders from being mounted
-            - /opt/ristretto/build/
+            - ../caches/server_build_cache:/opt/ristretto/build
+            - ../caches/server_conan_cache:/root/.conan/data
+            # Exclusions:
+            # .vscode folder
             - /opt/ristretto/.vscode/
-            # Exclude the clients's source code, shouldn't be configured to build it anyways
+            # clients's source code, shouldn't be configured to build it anyways
             - /opt/ristretto/src/client/
+            # client's build cahces
+            - /opt/ristretto/caches/client_build_cache/
+            - /opt/ristretto/caches/client_conan_cache/
         working_dir: /opt/ristretto/build
         build:
            # target: grpc-build # useful if not going to run server

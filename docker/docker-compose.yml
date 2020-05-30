@@ -2,7 +2,7 @@ version: "3.8"
 services:
     # Note: May need to "run" using --service-ports
     client:
-        entrypoint: sh
+        entrypoint: ash
         image: ristretto-client:latest-alpine
         devices:
             - "/dev/snd:/dev/snd" # Haven't tested this yet, should be able to get sound input from ALSA
@@ -34,6 +34,6 @@ services:
             - /opt/ristretto/src/client/
         working_dir: /opt/ristretto/build
         build:
+           # target: grpc-build # useful if not going to run server
             context: .
             dockerfile: ../src/server/docker/Dockerfile
-

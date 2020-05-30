@@ -3,4 +3,4 @@
 cd build
 mkdir -p src
 protoc --grpc_out ./src --cpp_out ./src -I ../src/protos \
- --plugin=protoc-gen-grpc=/usr/bin/grpc_cpp_plugin ../src/protos/ristretto.proto
+ --plugin=protoc-gen-grpc=$(which grpc_cpp_plugin) ../src/protos/ristretto.proto

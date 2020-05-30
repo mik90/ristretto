@@ -6,7 +6,8 @@ find_package(kaldi CONFIG REQUIRED
 
 add_executable(RistrettoServer 
     main.cpp
-    RistrettoServer.cpp
+    Utils.cpp
+    KaldiInterface.cpp
     ${ristretto_proto_srcs}
     ${ristretto_grpc_srcs}
 )
@@ -15,7 +16,7 @@ add_executable(RistrettoServer
 target_compile_definitions(RistrettoServer PUBLIC SPDLOG_ACTIVE_LEVEL=1)
 
 target_include_directories(RistrettoServer PRIVATE
-	"${CMAKE_CURRENT_BINARY_DIR}"
+    "${CMAKE_BINARY_DIR}/src"
 )
 
 target_link_libraries(RistrettoServer PRIVATE
@@ -23,14 +24,13 @@ target_link_libraries(RistrettoServer PRIVATE
     project_options
 	project_warnings
 
-	# gRPC/Protobuf
+	# system gRPC/Protobuf
     protobuf
-    gRPC
+    grpc++_unsecure
 
     # Libs from conan
     CONAN_PKG::fmt
     CONAN_PKG::spdlog
-    CONAN_PKG::boost
 
 	# Kaldi and OpenFST
     fst

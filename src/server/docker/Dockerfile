@@ -46,13 +46,6 @@ WORKDIR /opt/kaldi/
 # - Kaldi defaults to OpenBLAS in CMake, so that requires an additiona package
 RUN apt-get install -y --no-install-recommends \
   cmake libopenblas-dev
-WORKDIR /opt/kaldi
-RUN mkdir build
-WORKDIR /opt/kaldi/build
-RUN cmake .. -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs \
-  -DCMAKE_INSTALL_PREFIX=../dist \
-  -DCMAKE_BUILD_TYPE=Release
-RUN make install
 
 FROM kaldi-ubuntu18.04 as buildenv
 
@@ -69,8 +62,19 @@ RUN apt update \
   && apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main' \
   && apt update \
   && apt install -y --no-install-recommends \ 
-  gcc-9 g++-9 cmake ccache ninja curl libopenblas-dev \
+  gcc-9 g++-9 cmake ccache ninja-build curl clang-format-9 \
+  libopenblas-dev \
   python3 python3-distutils
+
+# Build Kaldi with the newer cmake
+WORKDIR /opt/kaldi
+RUN mkdir build
+WORKDIR /opt/kaldi/build
+RUN cmake .. -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs \
+  -DCMAKE_INSTALL_PREFIX=../dist \
+  -DCMAKE_BUILD_TYPE=Release
+RUN cmake --build . --parallel $(nproc)
+RUN cmake --install .
 
 # After building kaldi, set gcc-9 as the default
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 60  \
@@ -82,7 +86,30 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 RUN python3 get-pip.py && rm get-pip.py
 RUN pip3 install conan
 
-FROM buildenv as model-setup
+FROM buildenv as grpc-build 
+
+# Reference: https://github.com/npclaudiu/grpc-cpp-docker/blob/master/Dockerfile
+RUN apt update \
+  && apt install -y --no-install-recommends \
+  autoconf automake \
+  build-essential libtool \
+  pkg-config unzip
+ENV GRPC_RELEASE_TAG v1.29.1
+
+RUN git clone --depth 1 -b ${GRPC_RELEASE_TAG} https://github.com/grpc/grpc /opt/grpc \
+  && cd /opt/grpc \
+  && git submodule update --init --recursive --depth 1
+
+# TODO Just build grpc and protobuf for C++
+RUN cd /opt/grpc/third_party/protobuf \
+  && ./autogen.sh && ./configure --enable-shared \
+  && make -j $(nproc) && make install && make clean \
+  && ldconfig
+
+RUN cd /opt/grpc && make -j $(nproc) && make install && make clean \
+  && ldconfig
+
+FROM  grpc-build as model-setup
 # Set up the model
 
 # Need to unzip the trained aspire model with HCLG into the egs/aspire/s5/exp dir
@@ -102,32 +129,11 @@ RUN utils/mkgraph.sh --self-loop-scale 1.0 data/lang_pp_test exp/tdnn_7b_chain_o
 # I'd assume it's an issue on my end. Enabling downsampling will 'fix' it
 RUN echo "--allow_downsample=true" >> /opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/mfcc.conf
 
-FROM model-setup as grpc-build
-# Reference: https://github.com/npclaudiu/grpc-cpp-docker/blob/master/Dockerfile
-RUN apt update \
-  && apt install -y --no-install-recommends \
-  autoconf automake \
-  build-essential libtool \
-  pkg-config unzip
-ENV GRPC_RELEASE_TAG v1.128.2
-
-RUN git clone -b ${GRPC_RELEASE_TAG} https://github.com/grpc/grpc /opt/grpc \
-  && /opt/grpc \
-  && git submodule update --init --recursive
-
-RUN cd /opt/grpc/third_party/protobuf \
-  && ./autogen.sh && ./configure --enable-shared \
-  && make -j && make -j check && make install && make clean \
-  && ldconfig
-
-RUN cd /opt/grpc && make -j && make install && make clean \
-  && ldconfig
-
-FROM grpc-build as runenv
+FROM model-setup as runenv
 # Be root i guess, setting up a user and avoiding things being installed in /home is super annoying
 #RUN groupadd -r wheel && useradd --no-log-init -r -g wheel server
 #RUN chown server:wheel /opt/ristretto/build
 #RUN chown server:wheel /opt/ristretto/.vscode
 #USER server:wheel
 WORKDIR /opt/ristretto
-CMD ["cmake", "..", "-DBUILD_SERVER=ON", "-DBUILD_CLIENT=OFF", "-DCMAKE_BUILD_TYPE=Debug"]
+CMD ["cmake", "..", "-DBUILD_SERVER=ON", "-DBUILD_CLIENT=OFF", "-DCMAKE_BUILD_TYPE=Debug", "-DWARNINGS_AS_ERRORS=OFF"]

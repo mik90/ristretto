@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fmt/core.h>
 #include <grpc++/grpc++.h>
 #include <memory>
 #include <spdlog/spdlog.h>
@@ -7,69 +8,84 @@
 #include "ristretto.grpc.pb.h"
 
 // Reference:
-// https://chromium.googlesource.com/external/github.com/grpc/grpc/+/chromium-deps/2016-08-17/examples/cpp/helloworld/greeter_async_server.cc
+// https://github.com/grpc/grpc/blob/master/examples/cpp/helloworld/greeter_async_server.cc
 
 namespace mik {
 
-class RequestProcessor {
+class CallData {
+  ristretto::Greeter::AsyncService* service_;
+  grpc::ServerCompletionQueue* cq_;
+  grpc::ServerContext ctx_;
+
+  ristretto::HelloRequest request_;
+  ristretto::HelloReply reply_;
+
+  grpc::ServerAsyncResponseWriter<ristretto::HelloReply> responder_;
+
+  enum CallStatus { CREATE, PROCESS, FINISH };
+  CallStatus status_;
+
 public:
-  RequestProcessor(ristretto::AsyncService* service, grpc::ServerCompletionQueue* compQueue)
-      : service_(service), compQueue_(compQueue), responder_(&context_), status_(CREATE) {
-    start();
+  CallData(ristretto::Greeter::AsyncService* service, grpc::ServerCompletionQueue* cq)
+      : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
+    proceed();
   }
 
   void proceed() {
     if (status_ == CREATE) {
       status_ = PROCESS;
-      service_->RequesySayHello(&context_, &request_, &responder_, compQueue_, compQueue_, this);
-    } else if (status_ == PROCESS) {
-      new RequestProcessor(service_, compQueue_);
 
+      service_->RequestSayHello(&ctx_, &request_, &responder_, cq_, cq_, this);
+    } else if (status_ == PROCESS) {
+      new CallData(service_, cq_);
+
+      // The actual processing.
       std::string prefix("Hello ");
       reply_.set_message(prefix + request_.name());
 
       status_ = FINISH;
       responder_.Finish(reply_, grpc::Status::OK, this);
     } else {
+      GPR_ASSERT(status_ == FINISH);
       delete this;
     }
   }
-
-private:
-    ristretto::AsyncService* service_;
-    grpc::ServerCompletionQueue* compQueue_;
-    grpc::ServerContext context_;
-    ristretto::HelloRequest_;
-    ristretto::HelloReply_;
-    // For talking to the client
-    grpc::ServerAsyncResponseWriter<HelloReply> responder_;
-
-    enum CallStatus { CREATE, PROCESS, FINISH };
-    CallStatus status_;
-
 };
 
-class RisrettoServer {
-public:
-  RisrettoServer(std::string_view port);
-  ~RisrettoServer();
-  void run();
-
-private:
+class RistrettoServer {
+  std::unique_ptr<grpc::ServerCompletionQueue> cq_;
+  ristretto::Greeter::AsyncService service_;
+  std::unique_ptr<grpc::Server> server_;
+  // Thread safe
   void handleRpcs() {
-    new RequestProcessor(&service_, compQueue_.get());
+    new CallData(&service_, cq_.get());
     void* tag;
     bool ok;
     while (true) {
-      GPR_ASSERT(compQueue_->Next(&tag, &ok));
+      GPR_ASSERT(cq_->Next(&tag, &ok));
       GPR_ASSERT(ok);
-      static_cast<RequestProcessor*>(tag)->proceed();
+      static_cast<CallData*>(tag)->proceed();
     }
   }
 
-  std::unique_ptr<grpc::ServerCompletionQueue> compQueue_;
-  ristretto::AsyncService service_;
-  std::unique_ptr<grpc::Server> server_;
+public:
+  ~RistrettoServer() {
+    server_->Shutdown();
+    cq_->Shutdown();
+  }
+
+  void run() {
+    std::string serverAddress("0.0.0.0:50051");
+
+    grpc::ServerBuilder builder;
+    builder.AddListeningPort(serverAddress, grpc::InsecureServerCredentials());
+    builder.RegisterService(&service_);
+    cq_ = builder.AddCompletionQueue();
+    server_ = builder.BuildAndStart();
+    fmt::print("Server listening on {}\n", serverAddress);
+
+    handleRpcs();
+  }
 };
 
 } // namespace mik

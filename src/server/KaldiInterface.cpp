@@ -47,139 +47,88 @@
 
 namespace kaldi {
 
-int configureKaldi(int argc, char* argv[]) {
-  try {
-    using namespace kaldi;
-    using namespace fst;
+std::string Nnet3Data::decodeAudioChunk([[maybe_unused]] const char* data) {
 
-    Nnet3Data nnet3_data(argc, argv[]);
-    signal(SIGPIPE,
-           SIG_IGN); // ignore SIGPIPE to avoid crashing when socket forcefully disconnected
+  // TODO Get chunk
+  Vector<BaseFloat> wave_part /*= server.GetChunk()*/;
+  feature_pipeline_ptr->AcceptWaveform(samp_freq, wave_part);
+  samp_count += static_cast<int32>(chunk_len);
 
-    // TOOD Create server here
-    // server.run();
-    static_cast<void>(nnet3_data.read_timeout);
-    static_cast<void>(nnet3_data.port_num);
-
-    while (true) {
-
-      // TODO Accept connection
-
-      int32 samp_count = 0; // this is used for output refresh rate
-      size_t chunk_len = static_cast<size_t>(nnet3_data.chunk_length_secs * nnet3_data.samp_freq);
-      int32 check_period = static_cast<int32>(nnet3_data.samp_freq * nnet3_data.output_period);
-      int32 check_count = check_period;
-
-      int32 frame_offset = 0;
-
-      bool eos = false;
-
-      OnlineNnet2FeaturePipeline feature_pipeline(feature_info);
-      SingleUtteranceNnet3Decoder decoder(decoder_opts, nnet3_data.trans_model, decodable_info,
-                                          *decode_fst, &feature_pipeline);
-
-      while (!eos) {
-
-        decoder.InitDecoding(frame_offset);
-        OnlineSilenceWeighting silence_weighting(nnet3_data.trans_model,
-                                                 feature_info.silence_weighting_config,
-                                                 decodable_opts.frame_subsampling_factor);
-        std::vector<std::pair<int32, BaseFloat>> delta_weights;
-
-        while (true) {
-          // TODO Read chunk of data
-          // eos = !server.ReadChunk(chunk_len);
-
-          if (eos) {
-            feature_pipeline.InputFinished();
-            decoder.AdvanceDecoding();
-            decoder.FinalizeDecoding();
-            frame_offset += decoder.NumFramesDecoded();
-            if (decoder.NumFramesDecoded() > 0) {
-              CompactLattice lat;
-              decoder.GetLattice(true, &lat);
-              std::string msg = LatticeToString(lat, *word_syms);
-
-              // get time-span from previous endpoint to end of audio,
-              if (nnet3_data.produce_time) {
-                int32 t_beg = frame_offset - decoder.NumFramesDecoded();
-                int32 t_end = frame_offset;
-                msg = GetTimeString(t_beg, t_end, frame_shift * frame_subsampling) + " " + msg;
-              }
-
-              KALDI_VLOG(1) << "EndOfAudio, sending message: " << msg;
-              // TODO Respond with text
-              // server.WriteLn(msg);
-            } else
-              // TODO Respond with text
-              // server.Write("\n");
-              // TODO Disconnect
-              // server.Disconnect();
-              break;
-          }
-
-          // TODO Get chunk
-          Vector<BaseFloat> wave_part /*= server.GetChunk()*/;
-          feature_pipeline.AcceptWaveform(nnet3_data.samp_freq, wave_part);
-          samp_count += chunk_len;
-
-          if (silence_weighting.Active() && feature_pipeline.IvectorFeature() != NULL) {
-            silence_weighting.ComputeCurrentTraceback(decoder.Decoder());
-            silence_weighting.GetDeltaWeights(
-                feature_pipeline.NumFramesReady(),
-                frame_offset * decodable_opts.frame_subsampling_factor, &delta_weights);
-            feature_pipeline.UpdateFrameWeights(delta_weights);
-          }
-
-          decoder.AdvanceDecoding();
-
-          if (samp_count > check_count) {
-            if (decoder.NumFramesDecoded() > 0) {
-              Lattice lat;
-              decoder.GetBestPath(false, &lat);
-              TopSort(&lat); // for LatticeStateTimes(),
-              std::string msg = LatticeToString(lat, *word_syms);
-
-              // get time-span after previous endpoint,
-              if (nnet3_data.produce_time) {
-                int32 t_beg = frame_offset;
-                int32 t_end = frame_offset + GetLatticeTimeSpan(lat);
-                msg = GetTimeString(t_beg, t_end, frame_shift * frame_subsampling) + " " + msg;
-              }
-
-              KALDI_VLOG(1) << "Temporary transcript: " << msg;
-              // TODO
-              // server.WriteLn(msg, "\r");
-            }
-            check_count += check_period;
-          }
-
-          if (decoder.EndpointDetected(endpoint_opts)) {
-            decoder.FinalizeDecoding();
-            frame_offset += decoder.NumFramesDecoded();
-            CompactLattice lat;
-            decoder.GetLattice(true, &lat);
-            std::string msg = LatticeToString(lat, *word_syms);
-
-            // get time-span between endpoints,
-            if (nnet3_data.produce_time) {
-              int32 t_beg = frame_offset - decoder.NumFramesDecoded();
-              int32 t_end = frame_offset;
-              msg = GetTimeString(t_beg, t_end, frame_shift * frame_subsampling) + " " + msg;
-            }
-
-            KALDI_VLOG(1) << "Endpoint, sending message: " << msg;
-            // TODO
-            // server.WriteLn(msg);
-            break; // while (true)
-          }
-        }
-      }
-    }
-  } catch (const std::exception& e) {
-    std::cerr << e.what();
-    return -1;
+  if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != NULL) {
+    silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
+    silence_weighting_ptr->GetDeltaWeights(feature_pipeline_ptr->NumFramesReady(),
+                                           frame_offset * decodable_opts.frame_subsampling_factor,
+                                           &delta_weights);
+    feature_pipeline_ptr->UpdateFrameWeights(delta_weights);
   }
+
+  decoder_ptr->AdvanceDecoding();
+
+  if (samp_count > check_count) {
+    if (decoder_ptr->NumFramesDecoded() > 0) {
+      Lattice lat;
+      decoder_ptr->GetBestPath(false, &lat);
+      TopSort(&lat); // for LatticeStateTimes(),
+      std::string msg = LatticeToString(lat, *word_syms);
+
+      // get time-span after previous endpoint,
+      if (produce_time) {
+        int32 t_beg = frame_offset;
+        int32 t_end = frame_offset + GetLatticeTimeSpan(lat);
+        msg = GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
+              " " + msg;
+      }
+
+      SPDLOG_INFO("Temporary transcript: {}", msg);
+      // TODO
+      // server.WriteLn(msg, "\r");
+    }
+    check_count += check_period;
+  }
+
+  if (decoder_ptr->EndpointDetected(endpoint_opts)) {
+    decoder_ptr->FinalizeDecoding();
+    frame_offset += decoder_ptr->NumFramesDecoded();
+    CompactLattice lat;
+    decoder_ptr->GetLattice(true, &lat);
+    std::string msg = LatticeToString(lat, *word_syms);
+
+    // get time-span between endpoints,
+    if (produce_time) {
+      int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
+      int32 t_end = frame_offset;
+      msg = GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
+            " " + msg;
+    }
+
+    KALDI_VLOG(1) << "Endpoint, sending message: " << msg;
+    // TODO
+    // server.WriteLn(msg);
+  }
+
+  // Finish up  decoding
+  feature_pipeline_ptr->InputFinished();
+  decoder_ptr->AdvanceDecoding();
+  decoder_ptr->FinalizeDecoding();
+  frame_offset += decoder_ptr->NumFramesDecoded();
+  if (decoder_ptr->NumFramesDecoded() > 0) {
+    CompactLattice lat;
+    decoder_ptr->GetLattice(true, &lat);
+    std::string msg = LatticeToString(lat, *word_syms);
+
+    // get time-span from previous endpoint to end of audio,
+    if (produce_time) {
+      int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
+      int32 t_end = frame_offset;
+      msg = GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
+            " " + msg;
+    }
+
+    KALDI_VLOG(1) << "EndOfAudio, sending message: " << msg;
+    // TODO Respond with text
+    // server.WriteLn(msg);
+  }
+  return "";
 }
 
 Nnet3Data::Nnet3Data(int argc, char* argv[])
@@ -260,15 +209,30 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
 
   decode_fst = fst::ReadFstKaldiGeneric(fst_rxfilename);
 
-  fst::SymbolTable* word_syms = nullptr;
   if (!word_syms_filename.empty()) {
     if (!(word_syms = fst::SymbolTable::ReadText(word_syms_filename))) {
       SPDLOG_ERROR("Could not read symbol table from file {}", word_syms_filename);
     }
   }
 
-  signal(SIGPIPE,
-         SIG_IGN); // ignore SIGPIPE to avoid crashing when socket forcefully disconnected
+  samp_count = 0; // this is used for output refresh rate
+  chunk_len = static_cast<size_t>(chunk_length_secs * samp_freq);
+  check_period = static_cast<int32>(samp_freq * output_period);
+  check_count = check_period;
+  frame_offset = 0;
+
+  feature_pipeline_ptr = std::make_unique<OnlineNnet2FeaturePipeline>(feature_info);
+  decoder_ptr = std::make_unique<SingleUtteranceNnet3Decoder>(
+      decoder_opts, trans_model, decodable_info, *decode_fst, feature_pipeline_ptr.get());
+  /*
+  OnlineNnet2FeaturePipeline feature_pipeline(feature_info);
+  SingleUtteranceNnet3Decoder decoder(decoder_opts, trans_model, decodable_info, *decode_fst,
+                                      &feature_pipeline);
+  */
+
+  decoder_ptr->InitDecoding(frame_offset);
+  silence_weighting_ptr = std::make_unique<OnlineSilenceWeighting>(
+      trans_model, feature_info.silence_weighting_config, decodable_opts.frame_subsampling_factor);
 }
 
 std::string LatticeToString(const Lattice& lat, const fst::SymbolTable& word_syms) {
@@ -291,8 +255,8 @@ std::string LatticeToString(const Lattice& lat, const fst::SymbolTable& word_sym
 
 std::string GetTimeString(int32 t_beg, int32 t_end, BaseFloat time_unit) {
   char buffer[100];
-  double t_beg2 = t_beg * time_unit;
-  double t_end2 = t_end * time_unit;
+  double t_beg2 = static_cast<BaseFloat>(t_beg) * time_unit;
+  double t_end2 = static_cast<BaseFloat>(t_end) * time_unit;
   snprintf(buffer, 100, "%.2f %.2f", t_beg2, t_end2);
   return std::string(buffer);
 }

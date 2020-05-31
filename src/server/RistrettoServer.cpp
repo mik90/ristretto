@@ -51,8 +51,7 @@ void CallData::proceed() {
     new CallData(service_, cq_);
 
     // Grab the audiodata
-    // audiodata_
-
+    // audiodata_.audio();
     // The actual processing.
     // TODO Decode audio using kaldi here!
     transcript_.set_text("Decoding not implemented yet");

@@ -49,14 +49,25 @@ public:
   TransitionModel trans_model;
   nnet3::AmNnetSimple am_nnet;
   fst::Fst<fst::StdArc>* decode_fst;
+  fst::SymbolTable* word_syms;
   BaseFloat chunk_length_secs;
   BaseFloat output_period;
   BaseFloat samp_freq;
   int port_num;
   int read_timeout;
   bool produce_time;
+  int32 samp_count;
+  size_t chunk_len;
+  int32 check_period;
+  int32 check_count;
+  int32 frame_offset;
+  std::unique_ptr<OnlineNnet2FeaturePipeline> feature_pipeline_ptr;
+  std::unique_ptr<SingleUtteranceNnet3Decoder> decoder_ptr;
+  std::unique_ptr<OnlineSilenceWeighting> silence_weighting_ptr;
+  std::vector<std::pair<int32, BaseFloat>> delta_weights;
 
   Nnet3Data(int argc, char* argv[]);
+  std::string decodeAudioChunk(const char* audioData);
 };
 
 int runDecodeServer(int argc, char* argv[]);

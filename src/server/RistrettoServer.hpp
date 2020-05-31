@@ -21,7 +21,9 @@ namespace mik {
 
 class RistrettoServer {
 public:
-  RistrettoServer(int argc, char* argv[]) : nnet3Data_(argc, argv);
+  RistrettoServer(int argc, char* argv[]) : nnet3Data_(argc, argv) {
+    SPDLOG_INFO("Created RistrettoServer");
+  };
   ~RistrettoServer();
   void run();
 

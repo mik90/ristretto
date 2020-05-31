@@ -8,8 +8,9 @@ services:
         image: ristretto-client:latest
         devices:
             - "/dev/snd:/dev/snd" # Haven't tested this yet, should be able to get sound input from ALSA
-        ports:
-            - 5050:5050
+        #ports:
+        #    - 5050:5050
+        network_mode: host
         volumes:
             # Inclusions:
             - ../:/opt/ristretto
@@ -28,9 +29,11 @@ services:
     server:
         # Requires a computer with CUDA support
         entrypoint: bash
+        working_dir: /opt/ristretto/build
         image: ristretto-server:latest
-        ports:
-            - 5050:5050
+        #ports:
+        #    - 5051:5051
+        network_mode: host
         volumes:
             # Inclusions:
             - ../:/opt/ristretto
@@ -42,7 +45,6 @@ services:
             # client's build cahces
             - /opt/ristretto/caches/client_build_cache/
             - /opt/ristretto/caches/client_conan_cache/
-        working_dir: /opt/ristretto/build
         build:
            # target: grpc-build # useful if not going to run server
             context: .

@@ -5,7 +5,7 @@ services:
     #       I'm relying on mounting volumes during runtime instead of managing the Dockerfile context
     client:
         entrypoint: ash
-        image: ristretto-client:latest-alpine
+        image: ristretto-client:latest
         devices:
             - "/dev/snd:/dev/snd" # Haven't tested this yet, should be able to get sound input from ALSA
         ports:
@@ -18,8 +18,6 @@ services:
             # Exclusions:
             # .vscode folder
             - /opt/ristretto/.vscode/
-            # server's source code, shouldn't be configured to build it anyways
-            - /opt/ristretto/src/server/
             # server's build caches
             - /opt/ristretto/caches/server_build_cache/
             - /opt/ristretto/caches/server_conan_cache/
@@ -41,8 +39,6 @@ services:
             # Exclusions:
             # .vscode folder
             - /opt/ristretto/.vscode/
-            # clients's source code, shouldn't be configured to build it anyways
-            - /opt/ristretto/src/client/
             # client's build cahces
             - /opt/ristretto/caches/client_build_cache/
             - /opt/ristretto/caches/client_conan_cache/

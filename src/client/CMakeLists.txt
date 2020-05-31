@@ -12,6 +12,7 @@ target_link_libraries(protoObjects PRIVATE
 
 add_executable(RistrettoClient
   RistrettoClient.cpp
+  Utils.cpp
   main.cpp
 )
 
@@ -33,5 +34,5 @@ target_link_libraries(RistrettoClient PRIVATE
     # System-included gRPC/protobuf
     protobuf
     grpc++_unsecure
-    grpc
+    gpr
 )

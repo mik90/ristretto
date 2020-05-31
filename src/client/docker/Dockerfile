@@ -2,9 +2,9 @@ FROM alpine:latest as buildenv
 
 RUN apk add --update \
   bash \
-  gcc g++ ccache cmake \
+  gcc g++ ccache clang cmake \
   git \
-  python3 py3-setuptools \
+  python3 \
   zlib-dev \
   cmake make ninja \
   curl \
@@ -27,4 +27,6 @@ FROM buildenv as runenv
 #RUN chown client:wheel /opt/ristretto/build && chown client:wheel /opt/ristretto/.vscode
 #USER client:wheel
 WORKDIR /opt/ristretto
+# There's a little bug in Alpine, work around it to get color prompts
+RUN mv /etc/profile.d/color_prompt /etc/profile.d/color_prompt.sh
 ENTRYPOINT ["./runProtoc.sh &&", "cmake", "..", "-DBUILD_SERVER=ON", "-DBUILD_CLIENT=OFF", "-DCMAKE_BUILD_TYPE=Debug", "-G", "Ninja"]

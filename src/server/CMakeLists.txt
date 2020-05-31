@@ -31,9 +31,9 @@ target_link_libraries(RistrettoServer PRIVATE
     protoObjects
     # Project settings
     project_options
-	project_warnings
+    project_warnings
 
-	# system gRPC/Protobuf
+    # system gRPC/Protobuf
     protobuf
     grpc++_unsecure
     gpr
@@ -42,7 +42,7 @@ target_link_libraries(RistrettoServer PRIVATE
     CONAN_PKG::fmt
     CONAN_PKG::spdlog
 
-	# Kaldi and OpenFST
+    # Kaldi and OpenFST
     fst
     kaldi-base
     kaldi-matrix

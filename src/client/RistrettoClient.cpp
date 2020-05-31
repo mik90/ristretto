@@ -12,7 +12,15 @@
 
 namespace mik {
 
+RistrettoClient::RistrettoClient(std::shared_ptr<grpc::Channel> channel)
+    : stub_(ristretto::Greeter::NewStub(channel)) {
+  SPDLOG_INFO("Constructed RistrettoClient");
+  fmt::print("Constructed RistrettoClient\n");
+}
+
 std::string RistrettoClient::sendHello(const std::string& user) {
+
+  SPDLOG_INFO("sendHello start");
   ristretto::HelloRequest request;
   request.set_name(user);
 
@@ -32,6 +40,7 @@ std::string RistrettoClient::sendHello(const std::string& user) {
   GPR_ASSERT(got_tag == reinterpret_cast<void*>(1));
   GPR_ASSERT(ok);
 
+  SPDLOG_INFO("sendHello end");
   if (status.ok()) {
     return reply.message();
   } else {

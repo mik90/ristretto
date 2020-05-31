@@ -53,7 +53,7 @@ void Utils::createLogger() {
   }
 
   spdlog::set_pattern("[%H:%M:%S] [tid %t] [%s:%#] %v");
-  auto logger = spdlog::basic_logger_mt("KaldiClientLogger", "logs/client-kaldi.log", true);
+  auto logger = spdlog::basic_logger_mt("RistrettoClientLogger", "logs/ristretto-client.log", true);
   spdlog::set_default_logger(logger);
   spdlog::flush_every(std::chrono::seconds(2));
   spdlog::set_level(spdlog::level::debug);

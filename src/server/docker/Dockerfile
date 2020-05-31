@@ -65,7 +65,7 @@ RUN apt update \
   gcc-9 g++-9 cmake ccache ninja-build curl clang-format-9 \
   libopenblas-dev \
   python3 python3-distutils
-
+RUN ln -sv /usr/bin/clang-format-9 /usr/bin/clang-format
 # Build Kaldi with the newer cmake
 WORKDIR /opt/kaldi
 RUN mkdir build

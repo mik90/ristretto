@@ -36,7 +36,7 @@ void RistrettoServer::handleRpcs() {
   }
 }
 
-CallData::CallData(ristretto::Greeter::AsyncService* service, grpc::ServerCompletionQueue* cq)
+CallData::CallData(ristretto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq)
     : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
   SPDLOG_DEBUG("Constructing CallData");
   proceed();
@@ -46,16 +46,19 @@ void CallData::proceed() {
   if (status_ == CREATE) {
     status_ = PROCESS;
 
-    service_->RequestSayHello(&ctx_, &request_, &responder_, cq_, cq_, this);
+    service_->RequestDecodeAudio(&ctx_, &audioData_, &responder_, cq_, cq_, this);
   } else if (status_ == PROCESS) {
     new CallData(service_, cq_);
 
+    // Grab the audiodata
+    // audiodata_
+
     // The actual processing.
-    std::string prefix("Hello ");
-    reply_.set_message(prefix + request_.name());
+    // TODO Decode audio using kaldi here!
+    transcript_.set_text("Decoding not implemented yet");
 
     status_ = FINISH;
-    responder_.Finish(reply_, grpc::Status::OK, this);
+    responder_.Finish(transcript_, grpc::Status::OK, this);
   } else {
     GPR_ASSERT(status_ == FINISH);
     delete this;

@@ -16,10 +16,10 @@ services:
             - ../:/opt/ristretto
             - ../caches/client_build_cache:/opt/ristretto/build
             - ../caches/client_conan_cache:/root/.conan/data
+            - ../caches/client_vscode:opt/ristretto/.vscode/
             # Exclusions:
-            # .vscode folder
-            - /opt/ristretto/.vscode/
             # server's build caches
+            - /opt/ristretto/caches/server_vscode/
             - /opt/ristretto/caches/server_build_cache/
             - /opt/ristretto/caches/server_conan_cache/
         working_dir: /opt/ristretto/build
@@ -39,10 +39,10 @@ services:
             - ../:/opt/ristretto
             - ../caches/server_build_cache:/opt/ristretto/build
             - ../caches/server_conan_cache:/root/.conan/data
+            - ../caches/server_vscode:/opt/ristretto/.vscode/
             # Exclusions:
-            # .vscode folder
-            - /opt/ristretto/.vscode/
             # client's build cahces
+            - /opt/ristretto/caches/client_vscode/
             - /opt/ristretto/caches/client_build_cache/
             - /opt/ristretto/caches/client_conan_cache/
         build:

@@ -15,7 +15,7 @@ target_link_libraries(protoObjects PRIVATE
 add_executable(RistrettoServer 
     main.cpp
     Utils.cpp
-    #KaldiInterface.cpp
+    KaldiInterface.cpp
     RistrettoServer.cpp
 )
 

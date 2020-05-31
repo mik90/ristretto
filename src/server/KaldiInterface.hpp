@@ -1,3 +1,25 @@
+// Based on: online2bin/online2-tcp-nnet3-decode-faster.cc
+
+// Copyright 2014  Johns Hopkins University (author: Daniel Povey)
+//           2016  Api.ai (Author: Ilya Platonov)
+//           2018  Polish-Japanese Academy of Information Technology (Author: Danijel Korzinek)
+
+// See ../../COPYING for clarification regarding multiple authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+// THIS CODE IS PROVIDED *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
+// WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
+// MERCHANTABLITY OR NON-INFRINGEMENT.
+// See the Apache 2 License for the specific language governing permissions and
+// limitations under the License.
+
+// Modified for use in Ristretto
 #pragma once
 
 #include "feat/wave-reader.h"
@@ -11,63 +33,30 @@
 #include "online2/onlinebin-util.h"
 #include "util/kaldi-thread.h"
 
-#include <spdlog/spdlog.h>
+#include "fstext/fstext-lib.h"
+#include "lat/lattice-functions.h"
 
 namespace kaldi {
 
-struct Nnet3Config {
-  BaseFloat chunk_length_secs = 0.18;
-  BaseFloat output_period = 1;
-  BaseFloat samp_freq = 16000.0;
-  bool produce_time = false;
-  std::string nnet3_model_filename;
-  std::string fst_hclg_filename;
-  std::string word_syms_tbl_filename;
-};
-
-// TODO Needs a better name
-struct Nnet3Data {
-  OnlineNnet2FeaturePipelineInfo feature_info;
+class Nnet3Data {
+public:
+  OnlineNnet2FeaturePipelineConfig feature_opts;
+  nnet3::NnetSimpleLoopedComputationOptions decodable_opts;
+  LatticeFasterDecoderConfig decoder_opts;
+  OnlineEndpointConfig endpoint_opts;
   BaseFloat frame_shift;
   int32 frame_subsampling;
-
   TransitionModel trans_model;
   nnet3::AmNnetSimple am_nnet;
-  nnet3::DecodableNnetSimpleLoopedInfo decodable_info;
-
   fst::Fst<fst::StdArc>* decode_fst;
-  fst::SymbolTable* word_syms;
-  Nnet3Data(OnlineNnet2FeaturePipelineConfig feature_opts,
-            nnet3::NnetSimpleLoopedComputationOptions decodable_opts,
-            const std::string& nnet3_model_filename)
-      : feature_info(feature_info_in),
-        frame_shift(feature_info.FrameShiftInSeconds()),
-                    frame_subsampling(decodable_opts.frame_subsampling_factor)) {
+  BaseFloat chunk_length_secs;
+  BaseFloat output_period;
+  BaseFloat samp_freq;
+  int port_num;
+  int read_timeout;
+  bool produce_time;
 
-    SPDLOG_INFO("Loading AM...");
-    {
-      bool binary;
-      Input ki(nnet3_rxfilename, &binary);
-      trans_model.Read(ki.Stream(), binary);
-      am_nnet.Read(ki.Stream(), binary);
-      SetBatchnormTestMode(true, &(am_nnet.GetNnet()));
-      SetDropoutTestMode(true, &(am_nnet.GetNnet()));
-      nnet3::CollapseModel(nnet3::CollapseModelConfig(), &(am_nnet.GetNnet()));
-    }
-
-    decodable_info = nnet3::DecodableNnetSimpleLoopedInfo(decodable_opts, &am_nnet);
-
-    SPDLOG_INFO("Loading FST...");
-
-    fst::Fst<fst::StdArc>* decode_fst = ReadFstKaldiGeneric(fst_rxfilename);
-
-    fst::SymbolTable* word_syms = NULL;
-    if (!word_syms_filename.empty()) {
-      if (!(word_syms = fst::SymbolTable::ReadText(word_syms_filename))) {
-        SPDLOG_ERROR("Could not read symbol table from file {}", word_syms_filename);
-      }
-    }
-  }
+  Nnet3Data(int argc, char* argv[]);
 };
 
 int runDecodeServer(int argc, char* argv[]);

@@ -73,8 +73,6 @@ int runDecodeServer(int argc, char* argv[]) {
     BaseFloat chunk_length_secs = 0.18;
     BaseFloat output_period = 1;
     BaseFloat samp_freq = 16000.0;
-    int port_num = 5050;
-    int read_timeout = 3;
     bool produce_time = false;
 
     po.Register("samp-freq", &samp_freq,
@@ -85,10 +83,6 @@ int runDecodeServer(int argc, char* argv[]) {
                 "How often in seconds, do we check for changes in output.");
     po.Register("num-threads-startup", &g_num_threads,
                 "Number of threads used when initializing iVector extractor.");
-    po.Register("read-timeout", &read_timeout,
-                "Number of seconds of timout for TCP audio data to appear on the stream. Use -1 "
-                "for blocking.");
-    po.Register("port-num", &port_num, "Port number the server will listen on.");
     po.Register(
         "produce-time", &produce_time,
         "Prepend begin/end times between endpoints (e.g. '5.46 6.81 <text_output>', in seconds)");
@@ -147,7 +141,7 @@ int runDecodeServer(int argc, char* argv[]) {
     signal(SIGPIPE,
            SIG_IGN); // ignore SIGPIPE to avoid crashing when socket forcefully disconnected
 
-    // TOOD Create server here
+    // NOTE Create server here
     // mik::RistrettoServer server;
     // server.run();
     static_cast<void>(read_timeout);
@@ -155,7 +149,7 @@ int runDecodeServer(int argc, char* argv[]) {
 
     while (true) {
 
-      // TODO Accept connection
+      // NOTE: Accept connection was here
 
       int32 samp_count = 0; // this is used for output refresh rate
       size_t chunk_len = static_cast<size_t>(chunk_length_secs * samp_freq);
@@ -178,7 +172,7 @@ int runDecodeServer(int argc, char* argv[]) {
         std::vector<std::pair<int32, BaseFloat>> delta_weights;
 
         while (true) {
-          // TODO Read chunk of data
+          // NOTE Read chunk of data was here
           // eos = !server.ReadChunk(chunk_len);
 
           if (eos) {

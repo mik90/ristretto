@@ -13,44 +13,44 @@
 namespace mik {
 
 RistrettoClient::RistrettoClient(std::shared_ptr<grpc::Channel> channel)
-    : stub_(ristretto::Greeter::NewStub(channel)) {
+    : stub_(ristretto::Decoder::NewStub(channel)) {
   SPDLOG_INFO("Constructed RistrettoClient");
-  fmt::print("Constructed RistrettoClient\n");
 }
 
-std::string RistrettoClient::sendHello(const std::string& user) {
+std::string RistrettoClient::decodeAudio(const std::vector<char>& audio) {
 
-  SPDLOG_INFO("sendHello start");
-  ristretto::HelloRequest request;
-  request.set_name(user);
+  SPDLOG_DEBUG("decodeAudio start");
+  ristretto::AudioData audioData;
+  audioData.set_audio(reinterpret_cast<const char*>(audio.data()));
 
-  ristretto::HelloReply reply;
   grpc::ClientContext context;
   grpc::CompletionQueue cq;
   grpc::Status status;
 
-  std::unique_ptr<grpc::ClientAsyncResponseReader<ristretto::HelloReply>> rpc(
-      stub_->AsyncSayHello(&context, request, &cq));
+  std::unique_ptr<grpc::ClientAsyncResponseReader<ristretto::Transcript>> rpc(
+      stub_->AsyncDecodeAudio(&context, audioData, &cq));
 
-  rpc->Finish(&reply, &status, reinterpret_cast<void*>(1));
+  ristretto::Transcript transcipt;
+  rpc->Finish(&transcipt, &status, reinterpret_cast<void*>(1));
   void* got_tag;
   bool ok = false;
-
   GPR_ASSERT(cq.Next(&got_tag, &ok));
   GPR_ASSERT(got_tag == reinterpret_cast<void*>(1));
   GPR_ASSERT(ok);
 
-  SPDLOG_INFO("sendHello end");
+  SPDLOG_DEBUG("sendHello end");
   if (status.ok()) {
-    return reply.message();
+    return transcipt.text();
   } else {
-    return "RPC failed.";
+    SPDLOG_ERROR("Error with RPC: Error code:{}, details:{}", status.error_code(),
+                 status.error_details());
+    return "";
   }
 }
 
 // Strip all the newlines until we get to text
 // use all that text until we get to the newline
-std::string RistrettoClient::filterResult(const std::string& fullResult) {
+std::string filterResult(const std::string& fullResult) {
   SPDLOG_INFO("Initial:{}", fullResult);
   // Strip the temporary transcript to get the final result
   auto endOfText = fullResult.crbegin();

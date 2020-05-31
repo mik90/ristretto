@@ -14,8 +14,11 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   RistrettoClient client(channel);
   fmt::print("Created client\n");
 
-  std::string user("world");
-  std::string reply = client.sendHello(user);
-  fmt::print("Got reply:{}\n", reply);
+  const auto audioData = Utils::readInAudioFile("./test/resources/ClientTestAudio8KHz.raw");
+  const auto transcript = client.decodeAudio(audioData);
+
+  const auto info = fmt::format("Transcript:{}\n", transcript);
+  SPDLOG_INFO(info);
+  fmt::print(info);
   return 0;
 }

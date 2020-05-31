@@ -22,11 +22,10 @@ std::string filterResult(const std::string& fullResult);
 class RistrettoClient {
 public:
   explicit RistrettoClient(std::shared_ptr<grpc::Channel> channel);
-  std::string sendHello(const std::string& user);
-  static std::string filterResult(const std::string& result);
+  std::string decodeAudio(const std::vector<char>& audio);
 
 private:
-  std::unique_ptr<ristretto::Greeter::Stub> stub_;
+  std::unique_ptr<ristretto::Decoder::Stub> stub_;
 };
 
 } // namespace mik

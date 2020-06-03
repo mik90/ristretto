@@ -2,6 +2,8 @@
 #include <grpc/support/log.h>
 #include <spdlog/spdlog.h>
 
+#include <memory>
+
 #include "RistrettoServer.hpp"
 namespace mik {
 
@@ -30,7 +32,7 @@ void RistrettoServer::run() {
 }
 
 void RistrettoServer::handleRpcs() {
-  new CallData(&service_, cq_.get());
+  new CallData(&service_, cq_.get(), nnet3_.getDecoderLambda());
   void* tag;
   bool ok;
   SPDLOG_DEBUG("about to process Rpcs");
@@ -39,34 +41,35 @@ void RistrettoServer::handleRpcs() {
 
     GPR_ASSERT(cq_->Next(&tag, &ok));
     GPR_ASSERT(ok);
-    static_cast<CallData*>(tag)->proceed();
+    static_cast<CallData*>(tag)->proceed(nnet3_.getDecoderLambda());
   }
 }
 
-CallData::CallData(ristretto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq)
+CallData::CallData(ristretto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq,
+                   std::function<std::string(std::unique_ptr<std::string>)> decoderFunc)
     : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
   SPDLOG_DEBUG("Constructing CallData");
-  proceed();
+  proceed(std::move(decoderFunc));
 }
 
-void CallData::proceed() {
+void CallData::proceed(std::function<std::string(std::unique_ptr<std::string>)> decoderFunc) {
   SPDLOG_DEBUG("Running CallData state machine with state:{}", static_cast<int>(status_));
   if (status_ == CREATE) {
     status_ = PROCESS;
 
     service_->RequestDecodeAudio(&ctx_, &audioData_, &responder_, cq_, cq_, this);
   } else if (status_ == PROCESS) {
-    new CallData(service_, cq_);
+    new CallData(service_, cq_, decoderFunc);
 
-    // TODO Create thread-safe nnet3 API that can be passed into CallData
     // Grab the audiodata
-    // auto audioPtr = std::make_unique<std::string>(audioData_.release_audio());
-    // const auto text = nnet3Data_.decodeAudioChunk(ptr);
-
-    const std::string text = "Decoding not implemented yet";
+    std::unique_ptr<std::string> audioDataPtr(audioData_.release_audio());
+    // Call the decoder lambda
+    SPDLOG_DEBUG("Starting decoding...");
+    const auto text = decoderFunc(std::move(audioDataPtr));
     transcript_.set_text(text);
 
     status_ = FINISH;
+    SPDLOG_DEBUG("Responding with transcript: {}", text);
     responder_.Finish(transcript_, grpc::Status::OK, this);
   } else {
     GPR_ASSERT(status_ == FINISH);

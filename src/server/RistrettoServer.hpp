@@ -36,8 +36,9 @@ private:
 
 class CallData {
 public:
-  CallData(ristretto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq);
-  void proceed();
+  CallData(ristretto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq,
+           std::function<std::string(std::unique_ptr<std::string>)> decoderFunc);
+  void proceed(std::function<std::string(std::unique_ptr<std::string>)> decoderFunc);
 
 private:
   ristretto::Decoder::AsyncService* service_;

@@ -32,16 +32,8 @@
 #include "online2/onlinebin-util.h"
 #include "util/kaldi-thread.h"
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <poll.h>
-#include <signal.h>
-#include <string>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-
 #include <spdlog/spdlog.h>
+#include <string>
 
 #include "KaldiInterface.hpp"
 
@@ -57,9 +49,9 @@ Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioData)
   SPDLOG_DEBUG("After Resize, floatAudioData.SizeInBytes():{}", floatAudioData.SizeInBytes());
 
   for (auto i = 0; i < length; ++i) {
-    // auto c = (*audioData)[static_cast<size_t>(i)];
-    auto c = audioData->at(static_cast<size_t>(i));
-    floatAudioData(i) = static_cast<BaseFloat>(c);
+    // Convert each char in audioData into a BaseFloat for floatAudioData
+    // operator () is used for indexing apparently
+    floatAudioData(i) = static_cast<BaseFloat>((*audioData)[static_cast<size_t>(i)]);
   }
   SPDLOG_DEBUG("After conversion, floatAudioData.SizeInBytes():{}", floatAudioData.SizeInBytes());
   return floatAudioData;
@@ -68,6 +60,9 @@ Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioData)
 std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioData) {
 
   Vector<BaseFloat> wave_part = convertBytesToFloatVec(std::move(audioData));
+
+  // No idea how thread-safe Kaldi is so naively lock at the beginning of this method
+  std::lock_guard<std::mutex> lock(decoder_mutex);
 
   feature_pipeline_ptr->AcceptWaveform(samp_freq, wave_part);
   samp_count += static_cast<int32>(chunk_len);

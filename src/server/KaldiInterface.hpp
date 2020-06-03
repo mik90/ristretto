@@ -36,10 +36,14 @@
 #include "fstext/fstext-lib.h"
 #include "lat/lattice-functions.h"
 
+#include <mutex>
+
 namespace kaldi {
 
 class Nnet3Data {
 public:
+  // TODO These need to be marked as class members somehow
+  // Maybe renamed with pascalCase as well but that's more effort
   OnlineNnet2FeaturePipelineConfig feature_opts;
   nnet3::NnetSimpleLoopedComputationOptions decodable_opts;
   LatticeFasterDecoderConfig decoder_opts;
@@ -65,10 +69,18 @@ public:
   std::unique_ptr<SingleUtteranceNnet3Decoder> decoder_ptr;
   std::unique_ptr<OnlineSilenceWeighting> silence_weighting_ptr;
   std::vector<std::pair<int32, BaseFloat>> delta_weights;
+  std::mutex decoder_mutex;
 
   Nnet3Data(int argc, char* argv[]);
 
   std::string decodeAudioChunk(std::unique_ptr<std::string> audioData);
+
+  // Allows async functions to use the Nnet3 decoder
+  auto getDecoderLambda() {
+    return [this](std::unique_ptr<std::string> audioData) {
+      return this->decodeAudioChunk(std::move(audioData));
+    };
+  }
 };
 
 int runDecodeServer(int argc, char* argv[]);

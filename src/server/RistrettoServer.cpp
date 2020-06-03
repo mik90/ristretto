@@ -5,6 +5,10 @@
 #include "RistrettoServer.hpp"
 namespace mik {
 
+RistrettoServer::RistrettoServer(int argc, char* argv[]) : nnet3_(argc, argv) {
+  SPDLOG_INFO("Constructed RistrettoServer");
+}
+
 RistrettoServer::~RistrettoServer() {
   server_->Shutdown();
   cq_->Shutdown();
@@ -24,12 +28,15 @@ void RistrettoServer::run() {
   SPDLOG_DEBUG("run() end");
   handleRpcs();
 }
+
 void RistrettoServer::handleRpcs() {
   new CallData(&service_, cq_.get());
   void* tag;
   bool ok;
   SPDLOG_DEBUG("about to process Rpcs");
+
   while (true) {
+
     GPR_ASSERT(cq_->Next(&tag, &ok));
     GPR_ASSERT(ok);
     static_cast<CallData*>(tag)->proceed();
@@ -41,6 +48,7 @@ CallData::CallData(ristretto::Decoder::AsyncService* service, grpc::ServerComple
   SPDLOG_DEBUG("Constructing CallData");
   proceed();
 }
+
 void CallData::proceed() {
   SPDLOG_DEBUG("Running CallData state machine with state:{}", static_cast<int>(status_));
   if (status_ == CREATE) {
@@ -50,11 +58,13 @@ void CallData::proceed() {
   } else if (status_ == PROCESS) {
     new CallData(service_, cq_);
 
+    // TODO Create thread-safe nnet3 API that can be passed into CallData
     // Grab the audiodata
-    // audiodata_.audio();
-    // The actual processing.
-    // TODO Decode audio using kaldi here!
-    transcript_.set_text("Decoding not implemented yet");
+    // auto audioPtr = std::make_unique<std::string>(audioData_.release_audio());
+    // const auto text = nnet3Data_.decodeAudioChunk(ptr);
+
+    const std::string text = "Decoding not implemented yet";
+    transcript_.set_text(text);
 
     status_ = FINISH;
     responder_.Finish(transcript_, grpc::Status::OK, this);

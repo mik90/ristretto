@@ -67,7 +67,8 @@ public:
   std::vector<std::pair<int32, BaseFloat>> delta_weights;
 
   Nnet3Data(int argc, char* argv[]);
-  std::string decodeAudioChunk(const char* audioData);
+
+  std::string decodeAudioChunk(std::unique_ptr<std::string> audioData);
 };
 
 int runDecodeServer(int argc, char* argv[]);

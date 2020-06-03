@@ -1,13 +1,21 @@
-[![Build Status](https://travis-ci.org/mik90/ristretto.svg?branch=develop)](https://travis-ci.org/mik90/ristretto)
+## Ristretto
+Client/Server programs for online decoding using Kaldi's nnet3 decoder. Uses the fisher-english data set.
+Both the client and server have Dockerfiles and there is a docker-compomse that mounts volumes on the current repository for quick changes. 
+Client/Server communication is done with gRPC. As a note, this is nowhere near done.
 
-This is a frontend for a kaldi TCP server
-should just read in audio from ALSA, then feed it to a server
 
+------------------------
 ## TODO
-- Need to write test setup for the audio consumption logic
+- Make thread-safe nnet3 API that will be passed to CallData, can start out as a simple/naive implementation
+    - CallData has its own state per call
 - Send audio chunks to Kaldi, what duration though?
 - Logic for left context?
+- Should this use a streaming RPC or a normal message based setup?
+    - Start out as traditional setup but switch to streaming since audio can easily be streamed and the transcript may also
+      be able to be streamed
 
+------------------------
+### Notes
 #### Kaldi server side
 - Download aspire chain model with HCLG already compiled
     - my computer doesn't have enough RAM to train the nnet3 t_dnn for librispeech :(
@@ -18,7 +26,7 @@ should just read in audio from ALSA, then feed it to a server
 - Maybe put this in a docker container?
 - Can do "--device /dev/snd" to share the soundcards
 
-## Clang-format
+#### Clang-format
 - Using 3 versions, one in container, one on Arch, one on Gentoo
 - Gentoo is 9.0.1
 - Try to find oldest setup

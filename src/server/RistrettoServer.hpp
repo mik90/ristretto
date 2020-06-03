@@ -21,19 +21,17 @@ namespace mik {
 
 class RistrettoServer {
 public:
-  RistrettoServer(int argc, char* argv[]) : nnet3Data_(argc, argv) {
-    SPDLOG_INFO("Created RistrettoServer");
-  };
+  RistrettoServer(int argc, char* argv[]);
   ~RistrettoServer();
   void run();
 
 private:
+  // Thread safe
   void handleRpcs();
   std::unique_ptr<grpc::ServerCompletionQueue> cq_;
   ristretto::Decoder::AsyncService service_;
   std::unique_ptr<grpc::Server> server_;
-  kaldi::Nnet3Data nnet3Data_;
-  // Thread safe
+  kaldi::Nnet3Data nnet3_;
 };
 
 class CallData {

@@ -47,14 +47,32 @@
 
 namespace kaldi {
 
-std::string Nnet3Data::decodeAudioChunk([[maybe_unused]] const char* data) {
+Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioData) {
 
-  // TODO Get chunk
-  Vector<BaseFloat> wave_part /*= server.GetChunk()*/;
+  const auto length = static_cast<MatrixIndexT>(audioData->length());
+  Vector<BaseFloat> floatAudioData;
+  // Ensure that there's enough space in the output Vector
+  floatAudioData.Resize(length, kUndefined);
+  SPDLOG_DEBUG("audioData->length():{}", length);
+  SPDLOG_DEBUG("After Resize, floatAudioData.SizeInBytes():{}", floatAudioData.SizeInBytes());
+
+  for (auto i = 0; i < length; ++i) {
+    // auto c = (*audioData)[static_cast<size_t>(i)];
+    auto c = audioData->at(static_cast<size_t>(i));
+    floatAudioData(i) = static_cast<BaseFloat>(c);
+  }
+  SPDLOG_DEBUG("After conversion, floatAudioData.SizeInBytes():{}", floatAudioData.SizeInBytes());
+  return floatAudioData;
+}
+
+std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioData) {
+
+  Vector<BaseFloat> wave_part = convertBytesToFloatVec(std::move(audioData));
+
   feature_pipeline_ptr->AcceptWaveform(samp_freq, wave_part);
   samp_count += static_cast<int32>(chunk_len);
 
-  if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != NULL) {
+  if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
     silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
     silence_weighting_ptr->GetDeltaWeights(feature_pipeline_ptr->NumFramesReady(),
                                            frame_offset * decodable_opts.frame_subsampling_factor,
@@ -63,6 +81,7 @@ std::string Nnet3Data::decodeAudioChunk([[maybe_unused]] const char* data) {
   }
 
   decoder_ptr->AdvanceDecoding();
+  std::string output;
 
   if (samp_count > check_count) {
     if (decoder_ptr->NumFramesDecoded() > 0) {
@@ -80,8 +99,7 @@ std::string Nnet3Data::decodeAudioChunk([[maybe_unused]] const char* data) {
       }
 
       SPDLOG_INFO("Temporary transcript: {}", msg);
-      // TODO
-      // server.WriteLn(msg, "\r");
+      output += msg;
     }
     check_count += check_period;
   }
@@ -101,9 +119,8 @@ std::string Nnet3Data::decodeAudioChunk([[maybe_unused]] const char* data) {
             " " + msg;
     }
 
-    KALDI_VLOG(1) << "Endpoint, sending message: " << msg;
-    // TODO
-    // server.WriteLn(msg);
+    SPDLOG_INFO("Endpoint, sending message: {}", msg);
+    output += msg;
   }
 
   // Finish up  decoding
@@ -124,11 +141,10 @@ std::string Nnet3Data::decodeAudioChunk([[maybe_unused]] const char* data) {
             " " + msg;
     }
 
-    KALDI_VLOG(1) << "EndOfAudio, sending message: " << msg;
-    // TODO Respond with text
-    // server.WriteLn(msg);
+    SPDLOG_INFO("EndOfAudio, sending message: {}", msg);
+    output += msg;
   }
-  return "";
+  return output;
 }
 
 Nnet3Data::Nnet3Data(int argc, char* argv[])
@@ -279,4 +295,5 @@ std::string LatticeToString(const CompactLattice& clat, const fst::SymbolTable& 
   ConvertLattice(best_path_clat, &best_path_lat);
   return LatticeToString(best_path_lat, word_syms);
 }
-} // end of namespace kaldi
+
+} // namespace kaldi

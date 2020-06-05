@@ -13,7 +13,7 @@ void createLogger() {
     hasBeenCalled = true;
   }
 
-  spdlog::set_pattern("[%H:%M:%S] [tid %t] [%s:%#] %v");
+  spdlog::set_pattern("[%D:%H:%M:%S.%e] [tid %t] [%s:%#] %v");
   auto logger = spdlog::basic_logger_mt("RistrettoServerLogger", "logs/ristretto-server.log", true);
   spdlog::set_default_logger(logger);
   spdlog::flush_every(std::chrono::seconds(2));

@@ -136,4 +136,5 @@ FROM model-setup as runenv
 #RUN chown server:wheel /opt/ristretto/.vscode
 #USER server:wheel
 WORKDIR /opt/ristretto
-CMD ["cmake", "..", "-DBUILD_SERVER=ON", "-DBUILD_CLIENT=OFF", "-DCMAKE_BUILD_TYPE=Debug"]
+RUN mkdir -p build
+ENTRYPOINT "./buildServer.sh"

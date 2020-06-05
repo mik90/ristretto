@@ -20,8 +20,8 @@ target_include_directories(ClientTest PRIVATE
 add_custom_command(TARGET ClientTest POST_BUILD 
   COMMAND "${CMAKE_COMMAND}" -E copy 
      "${CMAKE_CURRENT_LIST_DIR}/../resources/*.raw"
-      "${CMAKE_BINARY_DIR}/test/client"
-  COMMENT "Copying test audio files to ${CMAKE_BINARY_DIR}/test/client"
+      "${CMAKE_BINARY_DIR}/bin"
+  COMMENT "Copying test audio files to ${CMAKE_BINARY_DIR}/bin"
 )
 
 # Skip tests that require user interaction

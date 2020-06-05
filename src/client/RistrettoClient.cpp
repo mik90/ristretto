@@ -21,7 +21,7 @@ std::string RistrettoClient::decodeAudio(const std::vector<char>& audio) {
 
   SPDLOG_DEBUG("decodeAudio start");
   ristretto::AudioData audioData;
-  audioData.set_audio(reinterpret_cast<const char*>(audio.data()));
+  audioData.set_audio(audio.data());
 
   grpc::ClientContext context;
   grpc::CompletionQueue cq;

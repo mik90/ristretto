@@ -1,7 +1,9 @@
 FROM alpine:latest as buildenv
 
+RUN mkdir -pv /opt/ristretto
+WORKDIR /opt/ristretto
+
 RUN apk add --update \
-  bash \
   gcc g++ ccache clang cmake \
   git \
   python3 \
@@ -10,7 +12,8 @@ RUN apk add --update \
   curl \
   grpc-dev protobuf-dev \
   alsa-lib-dev \
-  vim
+  vim \
+  musl-locales
 
 # The extra size is fine for now
 #RUN rm -rf /var/cache/apk/*
@@ -26,7 +29,8 @@ FROM buildenv as runenv
 #RUN useradd --no-log-init -r -g wheel client
 #RUN chown client:wheel /opt/ristretto/build && chown client:wheel /opt/ristretto/.vscode
 #USER client:wheel
-WORKDIR /opt/ristretto
 # There's a little bug in Alpine, work around it to get color prompts
 RUN mv /etc/profile.d/color_prompt /etc/profile.d/color_prompt.sh
-ENTRYPOINT ["./runProtoc.sh &&", "cmake", "..", "-DBUILD_SERVER=ON", "-DBUILD_CLIENT=OFF", "-DCMAKE_BUILD_TYPE=Debug", "-G", "Ninja"]
+WORKDIR /opt/ristretto
+RUN mkdir -pv build
+ENTRYPOINT "./buildClient.sh"

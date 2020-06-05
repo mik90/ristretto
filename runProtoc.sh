@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # I can't get the cmake custom command to work so this is just a workaround
 cd build
 mkdir -p src

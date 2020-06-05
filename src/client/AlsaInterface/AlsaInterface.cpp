@@ -120,7 +120,7 @@ std::vector<char> AlsaInterface::consumeDurationOfAudioData(unsigned int millise
                bytesToGet);
 
   if (bytesToGet > audioData_.size()) {
-    SPDLOG_INFO(
+    SPDLOG_WARN(
         "{} bytes were requested but only {} were available. Returning all that are available.",
         bytesToGet, audioData_.size());
     return std::exchange(audioData_, std::vector<char>{});

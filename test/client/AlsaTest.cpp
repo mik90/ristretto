@@ -74,6 +74,7 @@ TEST(AlsaTest, consumeAllAudio) {
 TEST(AlsaTest, consumeDurationOfAudio_10ms) {
   const std::vector<char> internalAudioData(425000);
   mik::AlsaConfig config;
+  // config.samplingFreq_Hz = 44100;
   MockAlsaInterface alsa(config);
   alsa.setAudioData(internalAudioData);
 

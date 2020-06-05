@@ -4,7 +4,7 @@ services:
     # TODO: I should probably figure out a neater way to include folder during build time
     #       I'm relying on mounting volumes during runtime instead of managing the Dockerfile context
     client:
-        entrypoint: ash
+        entrypoint: ash # Interactive
         image: ristretto-client:latest
         devices:
             - "/dev/snd:/dev/snd" # Haven't tested this yet, should be able to get sound input from ALSA
@@ -16,20 +16,20 @@ services:
             - ../:/opt/ristretto
             - ../caches/client_build_cache:/opt/ristretto/build
             - ../caches/client_conan_cache:/root/.conan/data
-            - ../caches/client_vscode:opt/ristretto/.vscode/
+            - ../caches/client_vscode:/opt/ristretto/.vscode/
             # Exclusions:
+            # This dir
+            - /opt/ristretto/docker
             # server's build caches
             - /opt/ristretto/caches/server_vscode/
             - /opt/ristretto/caches/server_build_cache/
             - /opt/ristretto/caches/server_conan_cache/
-        working_dir: /opt/ristretto/build
         build:
             context: .
-            dockerfile: ../src/client/docker/Dockerfile
+            dockerfile: ./Client.Dockerfile
     server:
         # Requires a computer with CUDA support
-        entrypoint: bash
-        working_dir: /opt/ristretto/build
+        #entrypoint: bash # Interactive
         image: ristretto-server:latest
         #ports:
         #    - 5051:5051
@@ -41,11 +41,13 @@ services:
             - ../caches/server_conan_cache:/root/.conan/data
             - ../caches/server_vscode:/opt/ristretto/.vscode/
             # Exclusions:
-            # client's build cahces
+            # This dir
+            - /opt/ristretto/docker
+            # client's build caches
             - /opt/ristretto/caches/client_vscode/
             - /opt/ristretto/caches/client_build_cache/
             - /opt/ristretto/caches/client_conan_cache/
         build:
            # target: grpc-build # useful if not going to run server
             context: .
-            dockerfile: ../src/server/docker/Dockerfile
+            dockerfile: ./Server.Dockerfile

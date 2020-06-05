@@ -28,7 +28,7 @@ std::vector<char> Utils::readInAudioFile(std::string_view filename) {
   }
 
   const auto inputSize = findSizeOfFileStream(inputStream);
-  SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"), "{} is {:L} bytes", filename, inputSize));
+  SPDLOG_DEBUG("{} is {} bytes", filename, inputSize);
 
   // Read in the entire file
   std::vector<char> audioBuffer;
@@ -36,11 +36,8 @@ std::vector<char> Utils::readInAudioFile(std::string_view filename) {
   audioBuffer.assign((std::istreambuf_iterator<char>(inputStream)),
                      std::istreambuf_iterator<char>());
 
-  SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"),
-                           "Read in {:L} out of {:L} bytes from audio file", inputStream.gcount(),
-                           inputSize));
-  SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"),
-                           "audioBuffer has {:L} bytes after reading in file", audioBuffer.size()));
+  SPDLOG_DEBUG("Read in {} out of {} bytes from audio file", inputStream.gcount(), inputSize);
+  SPDLOG_DEBUG("audioBuffer has {} bytes after reading in file", audioBuffer.size());
   return audioBuffer;
 }
 
@@ -52,7 +49,7 @@ void Utils::createLogger() {
     hasBeenCalled = true;
   }
 
-  spdlog::set_pattern("[%H:%M:%S] [tid %t] [%s:%#] %v");
+  spdlog::set_pattern("[%D:%H:%M:%S.%e] [tid %t] [%s:%#] %v");
   auto logger = spdlog::basic_logger_mt("RistrettoClientLogger", "logs/ristretto-client.log", true);
   spdlog::set_default_logger(logger);
   spdlog::flush_every(std::chrono::seconds(2));

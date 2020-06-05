@@ -1,4 +1,4 @@
-version: "3.8"
+version: "3.7"
 services:
     # Note: May need to "run" using --service-ports
     # TODO: I should probably figure out a neater way to include folder during build time

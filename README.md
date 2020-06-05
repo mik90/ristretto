@@ -1,3 +1,5 @@
+![.github/workflows/main.yml](https://github.com/mik90/ristretto/workflows/.github/workflows/main.yml/badge.svg)
+
 ## Ristretto
 Client/Server programs for online decoding using Kaldi's nnet3 decoder. Uses the fisher-english data set.
 Both the client and server have Dockerfiles and there is a docker-compomse that mounts volumes on the current repository for quick changes. 

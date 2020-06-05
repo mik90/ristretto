@@ -23,7 +23,9 @@ jobs:
     - name: Cache the conan data
       uses: actions/checkout@v2
       with:
-        path: /root/conan/.data
+        path: |
+             ./caches/client_conan_cache
+             ./caches/server_conan_cache
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
     # Runs a single command using the runners shell
     - name: Build server and client image

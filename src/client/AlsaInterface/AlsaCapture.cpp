@@ -4,7 +4,6 @@
 #include <utility>
 #include <vector>
 
-#include <fmt/locale.h>
 #include <spdlog/spdlog.h>
 
 #include "AlsaInterface.hpp"
@@ -93,8 +92,7 @@ std::vector<char> AlsaInterface::captureAudioUntilUserExit() {
   const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   const auto secondsAsFraction = static_cast<double>(duration.count()) / 1000.0;
   const auto infoMsg =
-      fmt::format(std::locale("en_US.UTF-8"),
-                  "Recording stopped, received {} seconds of audio totalling {:L} bytes",
+      fmt::format("Recording stopped, received {} seconds of audio totalling {:L} bytes",
                   secondsAsFraction, audioData_.size());
   SPDLOG_DEBUG(infoMsg);
   fmt::print("{}\n", infoMsg);

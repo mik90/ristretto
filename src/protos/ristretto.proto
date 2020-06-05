@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package ristretto;
+
+// ============= Service =============
+service Decoder {
+  rpc DecodeAudio(AudioData) returns (Transcript) {}
+}
+
+message AudioData { bytes audio = 1; }
+
+message Transcript { string text = 1; }

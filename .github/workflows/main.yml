@@ -29,10 +29,13 @@ jobs:
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
     # Runs a single command using the runners shell
     - name: Build server and client image
+      working-directory: ./docker
       run: docker-compose build server client
       
     - name: Compile and test client
+      working-directory: ./docker
       run: docker-compose run client
     # Runs a set of commands using the runners shell
     - name: Compile server
+      working-directory: ./docker
       run: docker-compose run server

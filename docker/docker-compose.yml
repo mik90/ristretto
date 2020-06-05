@@ -4,7 +4,7 @@ services:
     # TODO: I should probably figure out a neater way to include folder during build time
     #       I'm relying on mounting volumes during runtime instead of managing the Dockerfile context
     client:
-        entrypoint: ash # Interactive
+        #entrypoint: ash # Interactive
         image: ristretto-client:latest
         devices:
             - "/dev/snd:/dev/snd" # Haven't tested this yet, should be able to get sound input from ALSA

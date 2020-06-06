@@ -8,9 +8,9 @@ Client/Server communication is done with gRPC. As a note, this is nowhere near d
 
 ------------------------
 ## TODO
-- Make thread-safe nnet3 API that will be passed to CallData, can start out as a simple/naive implementation
-    - CallData has its own state per call
+- The nnet3 API is made thread-safe by a single mutex at the start, not neat but hopefully it works
 - Send audio chunks to Kaldi, what duration though?
+    - currently reading in a while audio file
 - Logic for left context?
 - Should this use a streaming RPC or a normal message based setup?
     - Start out as traditional setup but switch to streaming since audio can easily be streamed and the transcript may also
@@ -25,7 +25,6 @@ Client/Server communication is done with gRPC. As a note, this is nowhere near d
     - command: utils/build_const_arpa_lm.sh data/local/lm/lm_fglarge.arpa.gz data/lang_nosp data/lang_nosp_test_fglarge
     - Reading the README.txt did the trick, running the first 1/2 scripts generated the config i needed
         - /opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/online.conf.conf
-- Maybe put this in a docker container?
 - Can do "--device /dev/snd" to share the soundcards
 
 #### Clang-format

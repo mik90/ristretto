@@ -5,9 +5,10 @@ services:
     #       I'm relying on mounting volumes during runtime instead of managing the Dockerfile context
     client:
         #entrypoint: ash # Interactive
-        image: ristretto-client:latest
-        devices:
-            - "/dev/snd:/dev/snd" # Haven't tested this yet, should be able to get sound input from ALSA
+        image: mik90/ristretto:client-latest
+        # CI Wont have this
+        #devices:
+        #    - "/dev/snd:/dev/snd" # Haven't tested this yet, should be able to get sound input from ALSA
         #ports:
         #    - 5050:5050
         network_mode: host
@@ -30,7 +31,7 @@ services:
     server:
         # Requires a computer with CUDA support
         #entrypoint: bash # Interactive
-        image: ristretto-server:latest
+        image: mik90/ristretto:server-latest
         #ports:
         #    - 5051:5051
         network_mode: host

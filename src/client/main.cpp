@@ -15,10 +15,20 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   fmt::print("Created client\n");
 
   const auto audioData = Utils::readInAudioFile("./test/resources/ClientTestAudio8KHz.raw");
-  const auto transcript = client.decodeAudio(audioData);
+  if (audioData.empty()) {
+    SPDLOG_WARN("AudioData was empty!");
+    fmt::print("AudioData was empty!\n");
+    return 1;
+  }
 
-  const auto info = fmt::format("Transcript:{}\n", transcript);
-  SPDLOG_INFO(info);
-  fmt::print(info);
-  return 0;
+  const auto transcript = client.decodeAudio(audioData);
+  if (transcript.empty()) {
+    fmt::print("Response was empty!\n");
+    SPDLOG_ERROR("Response was empty!");
+    return 1;
+  } else {
+    fmt::print("Transcript:{}\n", transcript);
+    SPDLOG_INFO("Transcript:{}", transcript);
+    return 0;
+  }
 }

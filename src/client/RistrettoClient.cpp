@@ -21,7 +21,13 @@ std::string RistrettoClient::decodeAudio(const std::vector<char>& audio) {
 
   SPDLOG_DEBUG("decodeAudio start");
   ristretto::AudioData audioData;
-  audioData.set_audio(audio.data());
+  SPDLOG_DEBUG("audio vector size: {}", audio.size());
+  audioData.set_audio(audio.data(), audio.size());
+  SPDLOG_DEBUG("audioData bytes: {}", audioData.ByteSizeLong());
+  if (audioData.ByteSizeLong() == 0) {
+    SPDLOG_ERROR("audioData is empty, abandoning RPC");
+    return {};
+  }
 
   grpc::ClientContext context;
   grpc::CompletionQueue cq;
@@ -38,13 +44,13 @@ std::string RistrettoClient::decodeAudio(const std::vector<char>& audio) {
   GPR_ASSERT(got_tag == reinterpret_cast<void*>(1));
   GPR_ASSERT(ok);
 
-  SPDLOG_DEBUG("sendHello end");
+  SPDLOG_DEBUG("decodeAudio end");
   if (status.ok()) {
     return transcipt.text();
   } else {
     SPDLOG_ERROR("Error with RPC: Error code:{}, details:{}", status.error_code(),
-                 status.error_details());
-    return "";
+                 status.error_message());
+    return {};
   }
 }
 

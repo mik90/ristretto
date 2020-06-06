@@ -12,17 +12,15 @@ RUN apk add --update \
   curl \
   grpc-dev protobuf-dev \
   alsa-lib-dev \
-  vim \
-  musl-locales
+  musl-locales \
+  && rm -rf /var/cache/apk/*
 
-# Clean up the cache
-RUN rm -rf /var/cache/apk/*
+# Install conan
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
+  && python3 get-pip.py && rm get-pip.py \
+  && pip3 install conan
 
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-RUN python3 get-pip.py && rm get-pip.py
-RUN pip3 install conan
-
-
+# -------------------------------------------------------
 FROM buildenv as runenv
 # Be root i guess, setting up a user and avoiding things being installed in /home is super annoying
 #RUN groupadd -r wheel
@@ -33,4 +31,4 @@ FROM buildenv as runenv
 RUN mv /etc/profile.d/color_prompt /etc/profile.d/color_prompt.sh
 WORKDIR /opt/ristretto
 RUN mkdir -pv build
-ENTRYPOINT "./buildClient.sh"
+ENTRYPOINT "./clientEntry.sh"

@@ -36,20 +36,21 @@ std::vector<char> Utils::readInAudioFile(std::string_view filename) {
   audioBuffer.assign((std::istreambuf_iterator<char>(inputStream)),
                      std::istreambuf_iterator<char>());
 
-  SPDLOG_DEBUG("Read in {} out of {} bytes from audio file", inputStream.gcount(), inputSize);
   SPDLOG_DEBUG("audioBuffer has {} bytes after reading in file", audioBuffer.size());
   return audioBuffer;
 }
 
 void Utils::createLogger() {
-  static std::atomic<bool> hasBeenCalled = false;
-  if (hasBeenCalled) {
+  static std::atomic<bool> hasBeenCalled(false);
+  if (hasBeenCalled.load()) {
     return;
   } else {
-    hasBeenCalled = true;
+    hasBeenCalled.store(true);
   }
 
-  spdlog::set_pattern("[%D:%H:%M:%S.%e] [tid %t] [%s:%#] %v");
+  // Log level has the color range setup
+  // [D/M/YR Hour:Month:Second.ms]     [thread id] [log level] [source location] message
+  spdlog::set_pattern("[%D %H:%M:%S.%e] [tid %t] [%^%l%$] [%s:%#] %v");
   auto logger = spdlog::basic_logger_mt("RistrettoClientLogger", "logs/ristretto-client.log", true);
   spdlog::set_default_logger(logger);
   spdlog::flush_every(std::chrono::seconds(2));

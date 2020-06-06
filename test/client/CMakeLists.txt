@@ -14,9 +14,9 @@ target_link_libraries(ClientTest PRIVATE
 )
 
 target_include_directories(ClientTest PRIVATE
-   ${client_SOURCE_DIR}
-   ${client_SOURCE_DIR}/AlsaInterface
+    $<TARGET_PROPERTY:AlsaInterface,INCLUDE_DIRECTORIES>
 )
+
 add_custom_command(TARGET ClientTest POST_BUILD 
   COMMAND "${CMAKE_COMMAND}" -E copy 
      "${CMAKE_CURRENT_LIST_DIR}/../resources/*.raw"

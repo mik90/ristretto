@@ -39,33 +39,48 @@
 
 namespace kaldi {
 
-Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioData) {
+Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioDataPtr) {
 
-  const auto length = static_cast<MatrixIndexT>(audioData->length());
+  if (!audioDataPtr) {
+    SPDLOG_ERROR("audioDataPtr was null!");
+    return {};
+  }
+  if (audioDataPtr->empty()) {
+    SPDLOG_ERROR("audioData was empty!");
+    return {};
+  }
+
+  const auto length = static_cast<MatrixIndexT>(audioDataPtr->length());
   Vector<BaseFloat> floatAudioData;
   // Ensure that there's enough space in the output Vector
   floatAudioData.Resize(length, kUndefined);
-  SPDLOG_DEBUG("audioData->length():{}", length);
+  SPDLOG_DEBUG("audioDataPtr->length():{}", length);
   SPDLOG_DEBUG("After Resize, floatAudioData.SizeInBytes():{}", floatAudioData.SizeInBytes());
 
   for (auto i = 0; i < length; ++i) {
-    // Convert each char in audioData into a BaseFloat for floatAudioData
+    // Convert each char in audioDataPtr into a BaseFloat for floatAudioData
     // operator () is used for indexing apparently
-    floatAudioData(i) = static_cast<BaseFloat>((*audioData)[static_cast<size_t>(i)]);
+    floatAudioData(i) = static_cast<BaseFloat>((*audioDataPtr)[static_cast<size_t>(i)]);
   }
   SPDLOG_DEBUG("After conversion, floatAudioData.SizeInBytes():{}", floatAudioData.SizeInBytes());
   return floatAudioData;
 }
 
-std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioData) {
+std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioDataPtr) {
 
-  Vector<BaseFloat> wave_part = convertBytesToFloatVec(std::move(audioData));
+  SPDLOG_DEBUG("decodeAudioChunk entry");
+  Vector<BaseFloat> wave_part = convertBytesToFloatVec(std::move(audioDataPtr));
+  SPDLOG_DEBUG("wave_part size in bytes:{}", wave_part.SizeInBytes());
 
+  SPDLOG_DEBUG("Getting lock on mutex...");
   // No idea how thread-safe Kaldi is so naively lock at the beginning of this method
   std::lock_guard<std::mutex> lock(decoder_mutex);
+  SPDLOG_DEBUG("Got lock");
 
   feature_pipeline_ptr->AcceptWaveform(samp_freq, wave_part);
   samp_count += static_cast<int32>(chunk_len);
+  SPDLOG_INFO("Chunk length:{}", chunk_len);
+  SPDLOG_INFO("Total sample count:{}", samp_count);
 
   if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
     silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
@@ -73,9 +88,12 @@ std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioData) 
                                            frame_offset * decodable_opts.frame_subsampling_factor,
                                            &delta_weights);
     feature_pipeline_ptr->UpdateFrameWeights(delta_weights);
+    SPDLOG_DEBUG("Adjusted silence weighting");
   }
 
+  SPDLOG_DEBUG("Advancing decoding...");
   decoder_ptr->AdvanceDecoding();
+  SPDLOG_DEBUG("Decoding advanced");
   std::string output;
 
   if (samp_count > check_count) {
@@ -100,6 +118,7 @@ std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioData) 
   }
 
   if (decoder_ptr->EndpointDetected(endpoint_opts)) {
+    SPDLOG_INFO("Endpoint detected");
     decoder_ptr->FinalizeDecoding();
     frame_offset += decoder_ptr->NumFramesDecoded();
     CompactLattice lat;
@@ -145,6 +164,7 @@ std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioData) 
 Nnet3Data::Nnet3Data(int argc, char* argv[])
     : feature_opts(), decodable_opts(), decoder_opts(), endpoint_opts() {
 
+  SPDLOG_INFO("Constructing Nnet3Data");
   const char* usage = "Reads in audio from a network socket and performs online\n"
                       "decoding with neural nets (nnet3 setup), with iVector-based\n"
                       "speaker adaptation and endpointing.\n"

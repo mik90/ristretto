@@ -77,6 +77,7 @@ public:
 
   // Allows async functions to use the Nnet3 decoder
   auto getDecoderLambda() {
+    SPDLOG_DEBUG("Creating a decoder lambda");
     return [this](std::unique_ptr<std::string> audioData) {
       return this->decodeAudioChunk(std::move(audioData));
     };

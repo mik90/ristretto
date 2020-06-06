@@ -61,6 +61,8 @@ void CallData::proceed(std::function<std::string(std::unique_ptr<std::string>)> 
   } else if (status_ == PROCESS) {
     new CallData(service_, cq_, decoderFunc);
 
+    SPDLOG_DEBUG("Constructed new CallData to replace old one");
+    SPDLOG_DEBUG("Grabbing audioData...");
     // Grab the audiodata
     std::unique_ptr<std::string> audioDataPtr(audioData_.release_audio());
     // Call the decoder lambda

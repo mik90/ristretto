@@ -6,7 +6,7 @@ name: Ristretto CI
 # events but only for the master branch
 on:
   pull_request:
-    branches: [ develop ]
+    branches: [ master ]
 
 jobs:
   build:
@@ -14,13 +14,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Cache the conan data
-      uses: actions/checkout@v2
+
+    - uses: actions/cache@v2
       with:
         path: |
              ./caches/client_conan_cache
              ./caches/server_conan_cache
-        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+        key: ${{ runner.os }}-conan
    
     - name: Pull client image
       working-directory: ./docker
@@ -29,15 +29,17 @@ jobs:
     - name: Compile client
       working-directory: ./docker
       run: docker-compose run client
-    
+
+# Tests aren't stable yet, probably need to debug one more
 #    - name: Test client
 #      working-directory: ./docker
 #      run: docker-compose run client
-   
-    - name: Pull server image
-      working-directory: ./docker
-      run: docker-compose pull server
+
+# Server is too big to pull
+#    - name: Pull server image
+#      working-directory: ./docker
+#      run: docker-compose pull server
     
-    - name: Compile server
-      working-directory: ./docker
-      run: docker-compose run server
+#    - name: Compile server
+#      working-directory: ./docker
+#      run: docker-compose run server

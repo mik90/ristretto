@@ -13,7 +13,8 @@ target_compile_definitions(AlsaInterface PUBLIC
 )
 
 target_include_directories(AlsaInterface PUBLIC
-    ../
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/..
 )
 
 target_link_libraries(AlsaInterface PUBLIC

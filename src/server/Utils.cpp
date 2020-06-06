@@ -7,13 +7,15 @@ namespace mik {
 
 void createLogger() {
   static std::atomic<bool> hasBeenCalled(false);
-  if (hasBeenCalled) {
+  if (hasBeenCalled.load()) {
     return;
   } else {
-    hasBeenCalled = true;
+    hasBeenCalled.store(true);
   }
 
-  spdlog::set_pattern("[%D:%H:%M:%S.%e] [tid %t] [%s:%#] %v");
+  // Log level has the color range setup
+  // [D/M/YR Hour:Month:Second.ms]     [thread id] [log level] [source location] message
+  spdlog::set_pattern("[%D %H:%M:%S.%e] [tid %t] [%^%l%$] [%s:%#] %v");
   auto logger = spdlog::basic_logger_mt("RistrettoServerLogger", "logs/ristretto-server.log", true);
   spdlog::set_default_logger(logger);
   spdlog::flush_every(std::chrono::seconds(2));

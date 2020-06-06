@@ -6,7 +6,7 @@ name: Ristretto CI
 # events but only for the master branch
 on:
   pull_request:
-    branches: [ develop ]
+    branches: [ master ]
 
 jobs:
   build:

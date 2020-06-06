@@ -3,6 +3,7 @@
 caches/
 build/
 logs/
+Testing/
 *.wav
 .vscode/c_cpp_properties.json
 .vscode/settings.json

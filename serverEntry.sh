@@ -43,7 +43,7 @@ start_server()
         ./build/bin/RistrettoServer $ARGS
     else
         # Debugging ~enabled~
-        gdb --args ./build/bin/RistrettoServer $ARGS
+        gdb --quiet -ex run --args ./build/bin/RistrettoServer $ARGS
     fi
     popd
 }

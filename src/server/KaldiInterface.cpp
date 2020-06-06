@@ -66,6 +66,9 @@ Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioDataP
   return floatAudioData;
 }
 
+// --------------------------------------------------------------------------------------
+// Nnet3 decodeAudioChunk
+// --------------------------------------------------------------------------------------
 std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioDataPtr) {
 
   SPDLOG_DEBUG("decodeAudioChunk entry");
@@ -77,90 +80,124 @@ std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioDataPt
   std::lock_guard<std::mutex> lock(decoder_mutex);
   SPDLOG_DEBUG("Got lock");
 
-  feature_pipeline_ptr->AcceptWaveform(samp_freq, wave_part);
-  samp_count += static_cast<int32>(chunk_len);
-  SPDLOG_INFO("Chunk length:{}", chunk_len);
-  SPDLOG_INFO("Total sample count:{}", samp_count);
-
-  if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
-    silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
-    silence_weighting_ptr->GetDeltaWeights(feature_pipeline_ptr->NumFramesReady(),
-                                           frame_offset * decodable_opts.frame_subsampling_factor,
-                                           &delta_weights);
-    feature_pipeline_ptr->UpdateFrameWeights(delta_weights);
-    SPDLOG_DEBUG("Adjusted silence weighting");
+  // For debugging purposes
+  if (!feature_pipeline_ptr) {
+    SPDLOG_ERROR("feature_pipeline_ptr was null!");
+    return {};
+  } else if (!silence_weighting_ptr) {
+    SPDLOG_ERROR("silence_weighting_ptr was null!");
+    return {};
+  } else if (!decoder_ptr) {
+    SPDLOG_ERROR("decoder_ptr was null!");
+    return {};
   }
+  try {
 
-  SPDLOG_DEBUG("Advancing decoding...");
-  decoder_ptr->AdvanceDecoding();
-  SPDLOG_DEBUG("Decoding advanced");
-  std::string output;
+    feature_pipeline_ptr->AcceptWaveform(samp_freq, wave_part);
+    samp_count += static_cast<int32>(chunk_len);
+    SPDLOG_INFO("Chunk length:{}, Total sample count:{}", chunk_len, samp_count);
 
-  if (samp_count > check_count) {
-    if (decoder_ptr->NumFramesDecoded() > 0) {
-      Lattice lat;
-      decoder_ptr->GetBestPath(false, &lat);
-      TopSort(&lat); // for LatticeStateTimes(),
+    if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
+      silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
+      silence_weighting_ptr->GetDeltaWeights(feature_pipeline_ptr->NumFramesReady(),
+                                             frame_offset * decodable_opts.frame_subsampling_factor,
+                                             &delta_weights);
+      feature_pipeline_ptr->UpdateFrameWeights(delta_weights);
+      SPDLOG_DEBUG("Adjusted silence weighting");
+    }
+
+    SPDLOG_DEBUG("Advancing decoding...");
+    decoder_ptr->AdvanceDecoding();
+    SPDLOG_DEBUG("Decoding advanced");
+    std::string output;
+
+    SPDLOG_DEBUG("samp_count:{}, check_count:{}", samp_count, check_count);
+    if (samp_count > check_count) {
+      if (decoder_ptr->NumFramesDecoded() > 0) {
+        Lattice lat;
+        decoder_ptr->GetBestPath(/* end of utt */ false, &lat);
+        TopSort(&lat); // for LatticeStateTimes(),
+        std::string msg = LatticeToString(lat, *word_syms);
+
+        // get time-span after previous endpoint,
+        if (produce_time) {
+          int32 t_beg = frame_offset;
+          int32 t_end = frame_offset + GetLatticeTimeSpan(lat);
+          msg =
+              GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
+              " " + msg;
+        }
+
+        SPDLOG_INFO("Temporary transcript: {}", msg);
+        output += msg;
+      }
+      check_count += check_period;
+    }
+
+    if (decoder_ptr->EndpointDetected(endpoint_opts)) {
+      SPDLOG_INFO("Endpoint detected");
+      decoder_ptr->FinalizeDecoding();
+      frame_offset += decoder_ptr->NumFramesDecoded();
+      CompactLattice lat;
+      decoder_ptr->GetLattice(true, &lat);
       std::string msg = LatticeToString(lat, *word_syms);
 
-      // get time-span after previous endpoint,
+      // get time-span between endpoints,
       if (produce_time) {
-        int32 t_beg = frame_offset;
-        int32 t_end = frame_offset + GetLatticeTimeSpan(lat);
+        int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
+        int32 t_end = frame_offset;
         msg = GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
               " " + msg;
       }
 
-      SPDLOG_INFO("Temporary transcript: {}", msg);
+      SPDLOG_INFO("Endpoint, sending message: {}", msg);
       output += msg;
     }
-    check_count += check_period;
-  }
 
-  if (decoder_ptr->EndpointDetected(endpoint_opts)) {
-    SPDLOG_INFO("Endpoint detected");
+    SPDLOG_INFO("Input finished");
+    feature_pipeline_ptr->InputFinished();
+    /*
+      When the decoding is advanced twice, it ends up throwing std::bad_alloc
+
+      SPDLOG_DEBUG("Advancing decoding again...");
+      decoder_ptr->AdvanceDecoding();
+      SPDLOG_DEBUG("Decoding advanced");
+    */
     decoder_ptr->FinalizeDecoding();
+    SPDLOG_DEBUG("Decoding finalized");
     frame_offset += decoder_ptr->NumFramesDecoded();
-    CompactLattice lat;
-    decoder_ptr->GetLattice(true, &lat);
-    std::string msg = LatticeToString(lat, *word_syms);
+    SPDLOG_DEBUG("frame_offset:{}, NumFramesDecoded:{}", frame_offset,
+                 decoder_ptr->NumFramesDecoded());
+    if (decoder_ptr->NumFramesDecoded() > 0) {
+      CompactLattice lat;
+      decoder_ptr->GetLattice(true, &lat);
+      std::string msg = LatticeToString(lat, *word_syms);
 
-    // get time-span between endpoints,
-    if (produce_time) {
-      int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
-      int32 t_end = frame_offset;
-      msg = GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
-            " " + msg;
+      // get time-span from previous endpoint to end of audio,
+      if (produce_time) {
+        int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
+        int32 t_end = frame_offset;
+        msg = GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
+              " " + msg;
+      }
+
+      SPDLOG_INFO("EndOfAudio, sending message: {}", msg);
+      output += msg;
     }
+    return output;
 
-    SPDLOG_INFO("Endpoint, sending message: {}", msg);
-    output += msg;
+  } catch (const std::exception& e) {
+    SPDLOG_ERROR("Caught std::exception:{}", e.what());
+  } catch (...) {
+    SPDLOG_ERROR("Caught unknown exception");
   }
 
-  // Finish up  decoding
-  feature_pipeline_ptr->InputFinished();
-  decoder_ptr->AdvanceDecoding();
-  decoder_ptr->FinalizeDecoding();
-  frame_offset += decoder_ptr->NumFramesDecoded();
-  if (decoder_ptr->NumFramesDecoded() > 0) {
-    CompactLattice lat;
-    decoder_ptr->GetLattice(true, &lat);
-    std::string msg = LatticeToString(lat, *word_syms);
-
-    // get time-span from previous endpoint to end of audio,
-    if (produce_time) {
-      int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
-      int32 t_end = frame_offset;
-      msg = GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
-            " " + msg;
-    }
-
-    SPDLOG_INFO("EndOfAudio, sending message: {}", msg);
-    output += msg;
-  }
-  return output;
+  return {};
 }
 
+// --------------------------------------------------------------------------------------
+// Nnet3 Constructor
+// --------------------------------------------------------------------------------------
 Nnet3Data::Nnet3Data(int argc, char* argv[])
     : feature_opts(), decodable_opts(), decoder_opts(), endpoint_opts() {
 
@@ -214,14 +251,14 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
   const std::string fst_rxfilename = po.GetArg(2);
   const std::string word_syms_filename = po.GetArg(3);
 
-  OnlineNnet2FeaturePipelineInfo feature_info(feature_opts);
+  feature_info_ptr = std::make_unique<OnlineNnet2FeaturePipelineInfo>(feature_opts);
+  SPDLOG_INFO("Constructed OnlineNnet2FeaturePipelineInfo");
 
-  frame_shift = feature_info.FrameShiftInSeconds();
+  frame_shift = feature_info_ptr->FrameShiftInSeconds();
   frame_subsampling = decodable_opts.frame_subsampling_factor;
 
-  SPDLOG_INFO("Loading AM...");
-
   {
+    SPDLOG_INFO("Loading acoustic model...");
     bool binary;
     Input ki(nnet3_rxfilename, &binary);
     trans_model.Read(ki.Stream(), binary);
@@ -229,6 +266,7 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
     SetBatchnormTestMode(true, &(am_nnet.GetNnet()));
     SetDropoutTestMode(true, &(am_nnet.GetNnet()));
     nnet3::CollapseModel(nnet3::CollapseModelConfig(), &(am_nnet.GetNnet()));
+    SPDLOG_INFO("Loaded acoustic model");
   }
 
   // this object contains precomputed stuff that is used by all decodable
@@ -237,14 +275,13 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
   nnet3::DecodableNnetSimpleLoopedInfo decodable_info(decodable_opts, &am_nnet);
 
   SPDLOG_INFO("Loading FST...");
-
   decode_fst = fst::ReadFstKaldiGeneric(fst_rxfilename);
-
   if (!word_syms_filename.empty()) {
     if (!(word_syms = fst::SymbolTable::ReadText(word_syms_filename))) {
       SPDLOG_ERROR("Could not read symbol table from file {}", word_syms_filename);
     }
   }
+  SPDLOG_INFO("Loaded FST");
 
   samp_count = 0; // this is used for output refresh rate
   chunk_len = static_cast<size_t>(chunk_length_secs * samp_freq);
@@ -252,18 +289,21 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
   check_count = check_period;
   frame_offset = 0;
 
-  feature_pipeline_ptr = std::make_unique<OnlineNnet2FeaturePipeline>(feature_info);
+  feature_pipeline_ptr = std::make_unique<OnlineNnet2FeaturePipeline>(*feature_info_ptr);
+  SPDLOG_DEBUG("Constructed OnlineNnet2FeaturePipeline");
+
   decoder_ptr = std::make_unique<SingleUtteranceNnet3Decoder>(
       decoder_opts, trans_model, decodable_info, *decode_fst, feature_pipeline_ptr.get());
-  /*
-  OnlineNnet2FeaturePipeline feature_pipeline(feature_info);
-  SingleUtteranceNnet3Decoder decoder(decoder_opts, trans_model, decodable_info, *decode_fst,
-                                      &feature_pipeline);
-  */
+  SPDLOG_DEBUG("Constructed SingleUtteranceNnet3Decoder");
 
   decoder_ptr->InitDecoding(frame_offset);
+
   silence_weighting_ptr = std::make_unique<OnlineSilenceWeighting>(
-      trans_model, feature_info.silence_weighting_config, decodable_opts.frame_subsampling_factor);
+      trans_model, feature_info_ptr->silence_weighting_config,
+      decodable_opts.frame_subsampling_factor);
+  SPDLOG_DEBUG("Constructed OnlineSilenceWeighting");
+
+  SPDLOG_INFO("Constructed Nnet3Data");
 }
 
 std::string LatticeToString(const Lattice& lat, const fst::SymbolTable& word_syms) {

@@ -80,8 +80,9 @@ RUN cmake --install .
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 60  \
   --slave /usr/bin/g++ g++ /usr/bin/g++-9
 
-# The extra size is fine for now
-#RUN rm -rf /var/lib/apt/lists/*
+# Clean up the cache
+RUN rm -rf /var/lib/apt/lists/*
+
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 RUN python3 get-pip.py && rm get-pip.py
 RUN pip3 install conan

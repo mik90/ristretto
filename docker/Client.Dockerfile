@@ -15,8 +15,8 @@ RUN apk add --update \
   vim \
   musl-locales
 
-# The extra size is fine for now
-#RUN rm -rf /var/cache/apk/*
+# Clean up the cache
+RUN rm -rf /var/cache/apk/*
 
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 RUN python3 get-pip.py && rm get-pip.py

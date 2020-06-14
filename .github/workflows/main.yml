@@ -19,21 +19,23 @@ jobs:
       with:
         path: |
              ./caches/client_conan_cache
+             ./caches/client_build_cache
              ./caches/server_conan_cache
+             ./caches/server_build_cache
         key: ${{ runner.os }}-conan
    
     - name: Pull client image
       working-directory: ./docker
-      run: docker-compose pull client
+      run: docker-compose pull client-ci
       
     - name: Compile client
       working-directory: ./docker
-      run: docker-compose run client
+      run: docker-compose run client-ci
 
 # Tests aren't stable yet, probably need to debug one more
 #    - name: Test client
 #      working-directory: ./docker
-#      run: docker-compose run client
+#      run: docker-compose run client-ci
 
 # Server is too big to pull
 #    - name: Pull server image

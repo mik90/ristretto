@@ -20,13 +20,13 @@ run_tests()
     #ctest . -E "USER_INPUT|REQUIRES_SERVER"
 
     # Test resources are copied into bin
-    pushd /opt/ristretto/build/bin
-    TEST_BINARY="./ClientTest"
+    cd /opt/ristretto
+    TEST_BINARY="./build/bin/ClientTest"
     GTEST_ARGS=" --gtest_filter=-*USER_INPUT*:*REQUIRES_SERVER* "
     test -f $TEST_BINARY || { echo "$TEST_BINARY does not exist, have you built it yet?"; exit 1; }
     CMD="$TEST_BINARY $GTEST_ARGS"
     eval $CMD
-    popd
+    cd -
 }
 
 start_client()

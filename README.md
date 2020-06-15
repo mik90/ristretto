@@ -8,9 +8,12 @@ Client/Server communication is done with gRPC. As a note, this is nowhere near d
 
 ------------------------
 ## TODO
+- On the server, calling AdvanceDecoding doesn't result in decoding any frames
+  - Already read through the logs and API, might as well run it again with the original TCP server setup that Kaldi provides
+    and compare it to this setup to see if I'm missing anything
 - The nnet3 API is made thread-safe by a single mutex at the start, not neat but hopefully it works
 - Send audio chunks to Kaldi, what duration though?
-    - currently reading in a while audio file
+    - currently reading in a whole audio file for debugging
 - Logic for left context?
 - Should this use a streaming RPC or a normal message based setup?
     - Start out as traditional setup but switch to streaming since audio can easily be streamed and the transcript may also
@@ -29,8 +32,7 @@ Client/Server communication is done with gRPC. As a note, this is nowhere near d
 
 #### Clang-format
 - Using 3 versions, one in container, one on Arch, one on Gentoo
-- Gentoo is 9.0.1
-- Try to find oldest setup
+- Gentoo is 9.0.1, just use the oldest setup
 - Based on LLVM, changed to:
     - TabWidth = 4
     - PointerAlignment = Left

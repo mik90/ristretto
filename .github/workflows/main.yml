@@ -32,10 +32,9 @@ jobs:
       working-directory: ./docker
       run: docker-compose run client-ci
 
-# Tests aren't stable yet, probably need to debug one more
-#    - name: Test client
-#      working-directory: ./docker
-#      run: docker-compose run client-ci
+    - name: Test client
+      working-directory: ./docker
+      run: docker-compose run client-ci
 
 # Server is too big to pull
 #    - name: Pull server image

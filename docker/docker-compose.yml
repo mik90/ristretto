@@ -1,8 +1,7 @@
 version: "3.7"
 services:
-    # Note: If using "run", need to pass in --service-ports
     client-ci:
-        entrypoint: ./clientEntry
+        entrypoint: ./clientEntry.sh
         image: mik90/ristretto:client-latest
         network_mode: host
         cap_add:
@@ -10,9 +9,7 @@ services:
         volumes:
             # Inclusions:
             - ../:/opt/ristretto
-            - ../caches/client_build_cache:/opt/ristretto/build
             - ../caches/client_conan_cache:/root/.conan/data
-            - ../caches/client_vscode:/opt/ristretto/.vscode/
             # Exclusions:
             # This dir
             - /opt/ristretto/docker
@@ -27,6 +24,7 @@ services:
         # CI Wont have this
         devices:
             - "/dev/snd:/dev/snd" # Haven't tested this yet, should be able to get sound input from ALSA
+        # Note: If using ports and "run", need to pass in --service-ports
         #ports:
         #    - 5050:5050
         network_mode: host

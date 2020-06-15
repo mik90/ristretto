@@ -133,15 +133,21 @@ std::vector<char> AlsaInterface::consumeDurationOfAudioData(unsigned int millise
   const auto endOfConsumedAudio =
       std::next(startOfConsumedAudio,
                 static_cast<decltype(startOfConsumedAudio)::difference_type>(bytesToGet));
-
-  const auto startOfRemainingAudio = std::next(endOfConsumedAudio);
-  const auto endOfRemainingAudio = std::cend(audioData_);
-
+  // This data will be returned
   const std::vector<char> consumedAudio(startOfConsumedAudio, endOfConsumedAudio);
 
-  std::vector<char> remainingAudio(startOfRemainingAudio, endOfRemainingAudio);
-  audioData_.swap(remainingAudio);
+  {
+    // Swap audioData_ with a vector containing the current remaining audio
+    const auto startOfRemainingAudio = std::next(endOfConsumedAudio);
+    const auto endOfRemainingAudio = std::cend(audioData_);
+    // This data will be kept
+    std::vector<char> remainingAudio(startOfRemainingAudio, endOfRemainingAudio);
 
+    // Let the data that was formerly known as audioData_ be destroyed
+    audioData_.swap(remainingAudio);
+  }
+
+  SPDLOG_INFO("Consumed {} bytes of audio", consumedAudio.size());
   return consumedAudio;
 }
 

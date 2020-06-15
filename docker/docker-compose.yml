@@ -1,7 +1,6 @@
 version: "3.7"
 services:
     client-ci:
-        entrypoint: ./clientEntry.sh
         image: mik90/ristretto:client-latest
         network_mode: host
         cap_add:

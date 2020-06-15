@@ -1,12 +1,16 @@
 #!/bin/bash
 set -e
 
+run_protoc()
+{
+    echo "Running serverEntry.sh::run_protoc()"
+    cd /opt/ristretto
+    ./runProtoc.sh
+}
+
 run_build()
 {
     echo "Running serverEntry.sh::run_build()"
-    if [ "$SKIP_PROTOC" != "YES" ]; then
-        ./runProtoc.sh
-    fi
     pushd /opt/ristretto/build
     cmake .. -DBUILD_SERVER=ON -DBUILD_CLIENT=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -G Ninja
     cmake --build . --parallel $(nproc)
@@ -52,6 +56,9 @@ main()
 {
     echo "Running serverEntry.sh"
     cd /opt/ristretto
+    if [ "$SKIP_PROTOC" != "YES" ]; then
+        run_protoc
+    fi
     if [ "$SKIP_BUILD" != "YES" ]; then
         run_build
     fi

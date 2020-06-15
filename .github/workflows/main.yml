@@ -30,11 +30,11 @@ jobs:
       
     - name: Compile client
       working-directory: ./docker
-      run: docker-compose run client-ci
+      run: docker-compose run client-ci --entrypoint "SKIP_RUN=YES SKIP_TESTS=YES ./clientEntry.sh"
 
     - name: Test client
       working-directory: ./docker
-      run: docker-compose run client-ci
+      run: docker-compose run client-ci --entrypoint "SKIP_PROTOC=YES SKIP_BUILD=YES SKIP_RUN=YES ./clientEntry.sh"
 
 # Server is too big to pull
 #    - name: Pull server image

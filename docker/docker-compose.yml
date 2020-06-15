@@ -11,8 +11,10 @@ services:
             - ../:/opt/ristretto
             - ../caches/client_conan_cache:/root/.conan/data
             # Exclusions:
+            # Build folder
+            - /opt/ristretto/build/
             # This dir
-            - /opt/ristretto/docker
+            - /opt/ristretto/docker/
             # server's build caches
             - /opt/ristretto/caches/server_vscode/
             - /opt/ristretto/caches/server_build_cache/

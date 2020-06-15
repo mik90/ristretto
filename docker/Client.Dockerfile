@@ -12,7 +12,6 @@ RUN apk add --update \
   curl \
   grpc-dev protobuf-dev \
   alsa-lib-dev \
-  musl-locales \
   && rm -rf /var/cache/apk/*
 
 # Install conan

@@ -13,7 +13,7 @@ run_build()
     echo "Running clientEntry.sh::run_build()"
     cd /opt/ristretto/build
     cmake .. -DBUILD_SERVER=OFF -DBUILD_CLIENT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -G Ninja
-    cmake --build . --parallel $(nproc)
+    cmake --build . --target RistrettoClient --parallel $(nproc)
     cd -
 }
 

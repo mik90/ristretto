@@ -1,32 +1,9 @@
 #!/bin/bash
 set -e
 
-run_protoc()
-{
-    echo "Running serverEntry.sh::run_protoc()"
-    cd /opt/ristretto
-    ./runProtoc.sh
-}
-
-run_build()
-{
-    echo "Running serverEntry.sh::run_build()"
-    pushd /opt/ristretto/build
-    if [ "$DEBUG" != "YES" ]; then
-        BUILD_TYPE="RelWithDebInfo"
-    else
-        # Debugging ~enabled~
-        BUILD_TYPE="Debug"
-    fi
-    cmake .. -DBUILD_SERVER=ON -DBUILD_CLIENT=OFF -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -G Ninja
-    cmake --build . --target RistrettoServer --parallel $(nproc)
-    popd
-}
-
-
 start_server()
 {
-    echo "Running serverEntry.sh::start_server()"
+    echo "Running kaldiTcpServer.sh::start_server()"
 
     ulimit -c unlimited
 
@@ -47,27 +24,21 @@ start_server()
     --beam=15.0 --lattice-beam=6.0 --acoustic-scale=1.0 \
     --port-num=5050 ${MODEL} ${HCLG} ${WORDS}"
 
-    pushd /opt/ristretto
+    pushd /opt/kaldi
 
     if [ "$DEBUG" != "YES" ]; then
-        ./build/bin/RistrettoServer $ARGS
+        ./src/online2bin/online2-tcp-nnet3-decode-faster $ARGS
     else
         # Debugging ~enabled~
-        gdb --quiet -ex run --args ./build/bin/RistrettoServer $ARGS
+        gdb --quiet -ex run --args ./src/online2bin/online2-tcp-nnet3-decode-faster  $ARGS
     fi
     popd
 }
 
 main()
 {
-    echo "Running serverEntry.sh"
-    cd /opt/ristretto
-    if [ "$SKIP_PROTOC" != "YES" ]; then
-        run_protoc
-    fi
-    if [ "$SKIP_BUILD" != "YES" ]; then
-        run_build
-    fi
+    echo "Running kaldiTcpServer.sh"
+    cd /opt/kaldi
     if [ "$SKIP_RUN" != "YES" ]; then
         start_server
     fi

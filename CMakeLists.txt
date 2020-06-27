@@ -28,6 +28,7 @@ include(cmake/StaticAnalyzers.cmake)
 
 option(BUILD_SERVER "Build the decoding server" OFF)
 option(BUILD_CLIENT "Build the decoding client" ON)
+option(BUILD_KALDI_TCPCLIENT "Build client for Kaldi's own TCP server" OFF)
 
 
 option(BUILD_SHARED_LIBS "Enable compilation of shared libraries" OFF)

@@ -1,5 +1,9 @@
 add_subdirectory(AlsaInterface)
 
+if (BUILD_KALDI_TCP_CLIENT)
+    add_subdirectory(TcpClient)
+endif()
+
 add_library(protoObjects OBJECT
     ${ristretto_proto_srcs}
     ${ristretto_grpc_srcs}

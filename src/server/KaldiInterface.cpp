@@ -67,7 +67,7 @@ Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioDataP
 }
 
 // --------------------------------------------------------------------------------------
-// Nnet3 decodeAudioChunk
+// Nnet3 decodeAudio
 // --------------------------------------------------------------------------------------
 std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 
@@ -102,23 +102,23 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 
       // Get a usable chunk out of the audio data, this range will keep moving over the entire audio
       // data range
-      const auto end_range_idx =
-          std::min(complete_audio_size, samp_count + static_cast<int32>(chunk_len));
-      SPDLOG_DEBUG("end_range_idx {} vs complete_audio_size {}", end_range_idx,
-                   complete_audio_size);
-      const bool end_of_stream = (samp_count >= complete_audio_size);
+      auto data_left = complete_audio_data.Dim() - samp_count;
+      const bool end_of_stream = (data_left < static_cast<int32>(chunk_len));
+      data_left = std::min(data_left, static_cast<int32>(chunk_len));
+      SPDLOG_DEBUG("data_left {} vs chunk_len {}", data_left, chunk_len);
 
       if (end_of_stream) {
         SPDLOG_INFO("End of stream. samp_count {}", samp_count);
         break;
       }
 
-      SPDLOG_DEBUG("creating audio_chunk");
-      // const auto sub_vec = complete_audio_data.Range(samp_count, end_range_idx);
-      const auto sub_vec =
-          complete_audio_data.Range(0, static_cast<int32>(chunk_len)); // hack for testing
+      // Equivalent to GetChunk
+      SPDLOG_DEBUG("creating sub audio_chunk");
+      const auto sub_vec = complete_audio_data.Range(samp_count, data_left);
+      SPDLOG_DEBUG("created sub audio_chunk");
+      SPDLOG_DEBUG("creating audio_chunk copy of sub chunk");
       Vector<BaseFloat> audio_chunk(sub_vec);
-      SPDLOG_DEBUG("created audio_chunk");
+      SPDLOG_DEBUG("created audio_chunk copy of sub chunk");
 
       feature_pipeline_ptr->AcceptWaveform(samp_freq, audio_chunk);
       samp_count += static_cast<int32>(chunk_len);
@@ -187,9 +187,9 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 
     SPDLOG_INFO("Input finished");
     feature_pipeline_ptr->InputFinished();
-    // SPDLOG_DEBUG("Advancing decoding again...");
-    // decoder_ptr->AdvanceDecoding();
-    // SPDLOG_DEBUG("Decoding advanced");
+    SPDLOG_DEBUG("Advancing decoding again...");
+    decoder_ptr->AdvanceDecoding();
+    SPDLOG_DEBUG("Decoding advanced");
     decoder_ptr->FinalizeDecoding();
     SPDLOG_DEBUG("Decoding finalized");
     frame_offset += decoder_ptr->NumFramesDecoded();

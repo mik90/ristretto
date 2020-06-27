@@ -75,13 +75,13 @@ public:
 
   Nnet3Data(int argc, char* argv[]);
 
-  std::string decodeAudioChunk(std::unique_ptr<std::string> audioData);
+  std::string decodeAudio(std::unique_ptr<std::string> audioData);
 
   // Allows async functions to use the Nnet3 decoder
   auto getDecoderLambda() {
     SPDLOG_DEBUG("Creating a decoder lambda");
     return [this](std::unique_ptr<std::string> audioData) {
-      return this->decodeAudioChunk(std::move(audioData));
+      return this->decodeAudio(std::move(audioData));
     };
   }
 };

@@ -69,11 +69,12 @@ Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioDataP
 // --------------------------------------------------------------------------------------
 // Nnet3 decodeAudioChunk
 // --------------------------------------------------------------------------------------
-std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioDataPtr) {
+std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 
   SPDLOG_DEBUG("decodeAudioChunk entry");
-  Vector<BaseFloat> wave_part = convertBytesToFloatVec(std::move(audioDataPtr));
-  SPDLOG_DEBUG("wave_part size in bytes:{}", wave_part.SizeInBytes());
+  const Vector<BaseFloat> complete_audio_data = convertBytesToFloatVec(std::move(audioDataPtr));
+  const auto complete_audio_size = complete_audio_data.SizeInBytes();
+  SPDLOG_DEBUG("complete_audio_data size in bytes:{}", complete_audio_size);
 
   SPDLOG_DEBUG("Getting lock on mutex...");
   // No idea how thread-safe Kaldi is so naively lock at the beginning of this method
@@ -92,77 +93,103 @@ std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioDataPt
     return {};
   }
   try {
-
-    feature_pipeline_ptr->AcceptWaveform(samp_freq, wave_part);
-    samp_count += static_cast<int32>(chunk_len);
-    SPDLOG_INFO("Chunk length:{}, Total sample count:{}", chunk_len, samp_count);
-
-    if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
-      silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
-      silence_weighting_ptr->GetDeltaWeights(feature_pipeline_ptr->NumFramesReady(),
-                                             frame_offset * decodable_opts.frame_subsampling_factor,
-                                             &delta_weights);
-      feature_pipeline_ptr->UpdateFrameWeights(delta_weights);
-      SPDLOG_DEBUG("Adjusted silence weighting");
-    }
-
-    SPDLOG_DEBUG("Advancing decoding...");
-    decoder_ptr->AdvanceDecoding();
-    SPDLOG_DEBUG("Decoding advanced");
     std::string output;
+    size_t iteration_count = 0;
+    SPDLOG_DEBUG("total audio bytes / chunk_len == {}",
+                 complete_audio_size / static_cast<int32>(chunk_len));
+    while (true) {
+      SPDLOG_DEBUG("iteration_count {}", iteration_count++);
 
-    SPDLOG_DEBUG("samp_count:{}, check_count:{}", samp_count, check_count);
-    if (samp_count > check_count) {
-      if (decoder_ptr->NumFramesDecoded() > 0) {
-        Lattice lat;
-        decoder_ptr->GetBestPath(/* end of utt */ false, &lat);
-        TopSort(&lat); // for LatticeStateTimes(),
+      // Get a usable chunk out of the audio data, this range will keep moving over the entire audio
+      // data range
+      const auto end_range_idx =
+          std::min(complete_audio_size, samp_count + static_cast<int32>(chunk_len));
+      SPDLOG_DEBUG("end_range_idx {} vs complete_audio_size {}", end_range_idx,
+                   complete_audio_size);
+      const bool end_of_stream = (samp_count >= complete_audio_size);
+
+      if (end_of_stream) {
+        SPDLOG_INFO("End of stream. samp_count {}", samp_count);
+        break;
+      }
+
+      SPDLOG_DEBUG("creating audio_chunk");
+      // const auto sub_vec = complete_audio_data.Range(samp_count, end_range_idx);
+      const auto sub_vec =
+          complete_audio_data.Range(0, static_cast<int32>(chunk_len)); // hack for testing
+      Vector<BaseFloat> audio_chunk(sub_vec);
+      SPDLOG_DEBUG("created audio_chunk");
+
+      feature_pipeline_ptr->AcceptWaveform(samp_freq, audio_chunk);
+      samp_count += static_cast<int32>(chunk_len);
+      SPDLOG_INFO("Chunk length:{}, Total sample count:{}", chunk_len, samp_count);
+
+      if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
+        silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
+        silence_weighting_ptr->GetDeltaWeights(
+            feature_pipeline_ptr->NumFramesReady(),
+            frame_offset * decodable_opts.frame_subsampling_factor, &delta_weights);
+        feature_pipeline_ptr->UpdateFrameWeights(delta_weights);
+        SPDLOG_DEBUG("Adjusted silence weighting");
+      }
+
+      SPDLOG_DEBUG("Advancing decoding...");
+      decoder_ptr->AdvanceDecoding();
+      SPDLOG_DEBUG("Decoding advanced");
+
+      SPDLOG_DEBUG("samp_count:{}, check_count:{}", samp_count, check_count);
+      if (samp_count > check_count) {
+        const auto num_frames_decoded = decoder_ptr->NumFramesDecoded();
+        if (num_frames_decoded > 0) {
+          SPDLOG_DEBUG("decoded {} frames", num_frames_decoded);
+          Lattice lat;
+          decoder_ptr->GetBestPath(/* end of utt */ false, &lat);
+          TopSort(&lat); // for LatticeStateTimes(),
+          std::string msg = LatticeToString(lat, *word_syms);
+
+          // get time-span after previous endpoint,
+          if (produce_time) {
+            int32 t_beg = frame_offset;
+            int32 t_end = frame_offset + GetLatticeTimeSpan(lat);
+            msg = GetTimeString(t_beg, t_end,
+                                frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
+                  " " + msg;
+          }
+
+          SPDLOG_INFO("Temporary transcript: {}", msg);
+          output += msg;
+        }
+        check_count += check_period;
+      }
+
+      if (decoder_ptr->EndpointDetected(endpoint_opts)) {
+        SPDLOG_INFO("Endpoint detected");
+        decoder_ptr->FinalizeDecoding();
+        frame_offset += decoder_ptr->NumFramesDecoded();
+        CompactLattice lat;
+        decoder_ptr->GetLattice(true, &lat);
         std::string msg = LatticeToString(lat, *word_syms);
 
-        // get time-span after previous endpoint,
+        // get time-span between endpoints,
         if (produce_time) {
-          int32 t_beg = frame_offset;
-          int32 t_end = frame_offset + GetLatticeTimeSpan(lat);
+          int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
+          int32 t_end = frame_offset;
           msg =
               GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
               " " + msg;
         }
 
-        SPDLOG_INFO("Temporary transcript: {}", msg);
+        SPDLOG_INFO("Endpoint, sending message: {}", msg);
         output += msg;
+        break;
       }
-      check_count += check_period;
-    }
-
-    if (decoder_ptr->EndpointDetected(endpoint_opts)) {
-      SPDLOG_INFO("Endpoint detected");
-      decoder_ptr->FinalizeDecoding();
-      frame_offset += decoder_ptr->NumFramesDecoded();
-      CompactLattice lat;
-      decoder_ptr->GetLattice(true, &lat);
-      std::string msg = LatticeToString(lat, *word_syms);
-
-      // get time-span between endpoints,
-      if (produce_time) {
-        int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
-        int32 t_end = frame_offset;
-        msg = GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
-              " " + msg;
-      }
-
-      SPDLOG_INFO("Endpoint, sending message: {}", msg);
-      output += msg;
     }
 
     SPDLOG_INFO("Input finished");
     feature_pipeline_ptr->InputFinished();
-    /*
-      When the decoding is advanced twice, it ends up throwing std::bad_alloc
-
-      SPDLOG_DEBUG("Advancing decoding again...");
-      decoder_ptr->AdvanceDecoding();
-      SPDLOG_DEBUG("Decoding advanced");
-    */
+    // SPDLOG_DEBUG("Advancing decoding again...");
+    // decoder_ptr->AdvanceDecoding();
+    // SPDLOG_DEBUG("Decoding advanced");
     decoder_ptr->FinalizeDecoding();
     SPDLOG_DEBUG("Decoding finalized");
     frame_offset += decoder_ptr->NumFramesDecoded();

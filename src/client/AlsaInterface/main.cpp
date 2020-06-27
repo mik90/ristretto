@@ -42,8 +42,7 @@ int main(int argc, char** argv) {
   mik::Utils::createLogger();
   // Use the default config
   mik::AlsaConfig config;
-  // config.samplingFreq_Hz = 8000;
-  config.samplingFreq_Hz = 4000;
+  config.samplingFreq_Hz = 8000;
   mik::AlsaInterface alsa(config);
 
   if (capture && outputFilename) {
@@ -53,14 +52,14 @@ int main(int argc, char** argv) {
       SPDLOG_ERROR("Could not open {} for creating/writing", outputFilename.asString());
       std::exit(1);
     }
-    alsa.captureAudioFixedSize(outputStream, 5);
+    alsa.captureAudioFixedSize(outputStream, 15);
   } else if (playback && inputAudioFile) {
     std::fstream inputStream(inputAudioFile.asString(), inputStream.in);
     if (!inputStream.is_open()) {
       SPDLOG_ERROR("Could not open {} for reading", inputAudioFile.asString());
       std::exit(1);
     }
-    alsa.playbackAudioFixedSize(inputStream, 5);
+    alsa.playbackAudioFixedSize(inputStream, 15);
   }
 
   return 0;

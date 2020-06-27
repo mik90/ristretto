@@ -1,6 +1,9 @@
 {
     "C_Cpp.intelliSenseEngineFallback": "Enabled",
     "cmake.configureOnOpen": false,
+    "cmake.configureSettings": {
+        "CMAKE_MAKE_PROGRAM" : "/usr/bin/ninja"
+    },
     "editor.formatOnSave": true,
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": true

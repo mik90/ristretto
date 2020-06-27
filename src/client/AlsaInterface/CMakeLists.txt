@@ -1,5 +1,3 @@
-project(client)
-
 add_library(AlsaInterface STATIC
     AlsaCapture.cpp
     AlsaPlayback.cpp

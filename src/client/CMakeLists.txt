@@ -1,5 +1,3 @@
-project(client)
-
 add_subdirectory(AlsaInterface)
 
 add_library(protoObjects OBJECT

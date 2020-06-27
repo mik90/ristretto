@@ -1,5 +1,3 @@
-project(server)
-
 find_package(kaldi CONFIG REQUIRED
     PATHS ${CMAKE_SOURCE_DIR}/../kaldi/dist/lib/cmake/kaldi
 )
@@ -21,6 +19,12 @@ add_executable(RistrettoServer
 
 # Turn spdlog onto the DEBUG level
 target_compile_definitions(RistrettoServer PUBLIC SPDLOG_ACTIVE_LEVEL=1)
+
+# These keep disappearing in my cache, unsure why??
+set(CMAKE_CXX_FLAGS_DEBUG "-ggdb -Og -DDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g -DNDEBUG")
+set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -DNDEBUG")
 
 target_include_directories(RistrettoServer PRIVATE
     "${CMAKE_BINARY_DIR}/src"

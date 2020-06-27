@@ -12,7 +12,13 @@ run_build()
 {
     echo "Running serverEntry.sh::run_build()"
     pushd /opt/ristretto/build
-    cmake .. -DBUILD_SERVER=ON -DBUILD_CLIENT=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -G Ninja
+    if [ "$DEBUG" != "YES" ]; then
+        BUILD_TYPE="RelWithDebInfo"
+    else
+        # Debugging ~enabled~
+        BUILD_TYPE="Debug"
+    fi
+    cmake .. -DBUILD_SERVER=ON -DBUILD_CLIENT=OFF -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -G Ninja
     cmake --build . --parallel $(nproc)
     popd
 }

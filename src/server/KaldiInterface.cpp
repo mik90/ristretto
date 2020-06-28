@@ -73,13 +73,21 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 
   SPDLOG_DEBUG("decodeAudioChunk entry");
   const Vector<BaseFloat> complete_audio_data = convertBytesToFloatVec(std::move(audioDataPtr));
-  const auto complete_audio_size = complete_audio_data.SizeInBytes();
-  SPDLOG_DEBUG("complete_audio_data size in bytes:{}", complete_audio_size);
+  const auto complete_audio_size_in_bytes = complete_audio_data.SizeInBytes();
+  SPDLOG_DEBUG("complete_audio_data size in bytes:{}", complete_audio_size_in_bytes);
 
   SPDLOG_DEBUG("Getting lock on mutex...");
   // No idea how thread-safe Kaldi is so naively lock at the beginning of this method
   std::lock_guard<std::mutex> lock(decoder_mutex);
   SPDLOG_DEBUG("Got lock");
+
+  decoder_ptr->InitDecoding(frame_offset);
+  SPDLOG_INFO("Initialized decoding");
+
+  silence_weighting_ptr = std::make_unique<OnlineSilenceWeighting>(
+      trans_model, feature_info_ptr->silence_weighting_config,
+      decodable_opts.frame_subsampling_factor);
+  SPDLOG_DEBUG("Constructed OnlineSilenceWeighting");
 
   // For debugging purposes
   if (!feature_pipeline_ptr) {
@@ -96,33 +104,43 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
     std::string output;
     size_t iteration_count = 0;
     SPDLOG_DEBUG("total audio bytes / chunk_len == {}",
-                 complete_audio_size / static_cast<int32>(chunk_len));
+                 complete_audio_size_in_bytes / static_cast<int32>(chunk_len));
     while (true) {
       SPDLOG_DEBUG("iteration_count {}", iteration_count++);
 
       // Get a usable chunk out of the audio data, this range will keep moving over the entire audio
       // data range
-      auto data_left = complete_audio_data.Dim() - samp_count;
-      const bool end_of_stream = (data_left < static_cast<int32>(chunk_len));
-      data_left = std::min(data_left, static_cast<int32>(chunk_len));
-      SPDLOG_DEBUG("data_left {} vs chunk_len {}", data_left, chunk_len);
+      auto samples_to_read = complete_audio_data.Dim() - samp_count;
+      // Don't read more than a chunk
+      samples_to_read = std::min(samples_to_read, static_cast<int32>(chunk_len));
+      // Don't try to read a negative number
+      samples_to_read = std::max(0, samples_to_read);
+      SPDLOG_DEBUG("samples_to_read {} vs chunk_len {}", samples_to_read, chunk_len);
 
-      if (end_of_stream) {
-        SPDLOG_INFO("End of stream. samp_count {}", samp_count);
+      if (samples_to_read == 0) {
+        SPDLOG_INFO("End of stream, no more samples left. samp_count {}", samp_count);
         break;
       }
 
       // Equivalent to GetChunk
-      SPDLOG_DEBUG("creating sub audio_chunk");
-      const auto sub_vec = complete_audio_data.Range(samp_count, data_left);
-      SPDLOG_DEBUG("created sub audio_chunk");
+      SPDLOG_DEBUG("creating sub audio_chunk with Range({},{})", samp_count, samples_to_read);
+      const auto sub_vec = complete_audio_data.Range(samp_count, samples_to_read);
+      SPDLOG_DEBUG("created sub audio_chunk dim: {}, size in bytes:{}", sub_vec.Dim(),
+                   sub_vec.SizeInBytes());
       SPDLOG_DEBUG("creating audio_chunk copy of sub chunk");
       Vector<BaseFloat> audio_chunk(sub_vec);
-      SPDLOG_DEBUG("created audio_chunk copy of sub chunk");
+      SPDLOG_DEBUG("created audio_chunk copy of sub chunk dim: {}, size in bytes:{}",
+                   audio_chunk.Dim(), audio_chunk.SizeInBytes());
 
       feature_pipeline_ptr->AcceptWaveform(samp_freq, audio_chunk);
       samp_count += static_cast<int32>(chunk_len);
       SPDLOG_INFO("Chunk length:{}, Total sample count:{}", chunk_len, samp_count);
+      const auto num_frames_ready = feature_pipeline_ptr->NumFramesReady();
+      const auto frame_shift_sec = feature_pipeline_ptr->FrameShiftInSeconds();
+      const auto feature_dim = feature_pipeline_ptr->Dim();
+      SPDLOG_DEBUG(
+          "feature_pipeline_ptr info: NumFramesReady is {}, FrameShiftInSeconds is {}, Dim is {}",
+          num_frames_ready, frame_shift_sec, feature_dim);
 
       if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
         silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
@@ -140,8 +158,9 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
       SPDLOG_DEBUG("samp_count:{}, check_count:{}", samp_count, check_count);
       if (samp_count > check_count) {
         const auto num_frames_decoded = decoder_ptr->NumFramesDecoded();
+        SPDLOG_DEBUG("decoded {} frames", num_frames_decoded);
         if (num_frames_decoded > 0) {
-          SPDLOG_DEBUG("decoded {} frames", num_frames_decoded);
+          SPDLOG_DEBUG("decoded some {} frames!", num_frames_decoded);
           Lattice lat;
           decoder_ptr->GetBestPath(/* end of utt */ false, &lat);
           TopSort(&lat); // for LatticeStateTimes(),
@@ -183,10 +202,19 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
         output += msg;
         break;
       }
-    }
+    } // end of while(true) loop
 
     SPDLOG_INFO("Input finished");
     feature_pipeline_ptr->InputFinished();
+    if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
+      silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
+      silence_weighting_ptr->GetDeltaWeights(feature_pipeline_ptr->NumFramesReady(),
+                                             frame_offset * decodable_opts.frame_subsampling_factor,
+                                             &delta_weights);
+      feature_pipeline_ptr->UpdateFrameWeights(delta_weights);
+      SPDLOG_DEBUG("Adjusted silence weighting");
+    }
+
     SPDLOG_DEBUG("Advancing decoding again...");
     decoder_ptr->AdvanceDecoding();
     SPDLOG_DEBUG("Decoding advanced");
@@ -296,10 +324,8 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
     SPDLOG_INFO("Loaded acoustic model");
   }
 
-  // this object contains precomputed stuff that is used by all decodable
-  // objects.  It takes a pointer to am_nnet because if it has iVectors it has
-  // to modify the nnet to accept iVectors at intervals.
-  nnet3::DecodableNnetSimpleLoopedInfo decodable_info(decodable_opts, &am_nnet);
+  decodable_info_ptr =
+      std::make_unique<nnet3::DecodableNnetSimpleLoopedInfo>(decodable_opts, &am_nnet);
 
   SPDLOG_INFO("Loading FST...");
   decode_fst = fst::ReadFstKaldiGeneric(fst_rxfilename);
@@ -320,15 +346,8 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
   SPDLOG_DEBUG("Constructed OnlineNnet2FeaturePipeline");
 
   decoder_ptr = std::make_unique<SingleUtteranceNnet3Decoder>(
-      decoder_opts, trans_model, decodable_info, *decode_fst, feature_pipeline_ptr.get());
+      decoder_opts, trans_model, *decodable_info_ptr, *decode_fst, feature_pipeline_ptr.get());
   SPDLOG_DEBUG("Constructed SingleUtteranceNnet3Decoder");
-
-  decoder_ptr->InitDecoding(frame_offset);
-
-  silence_weighting_ptr = std::make_unique<OnlineSilenceWeighting>(
-      trans_model, feature_info_ptr->silence_weighting_config,
-      decodable_opts.frame_subsampling_factor);
-  SPDLOG_DEBUG("Constructed OnlineSilenceWeighting");
 
   SPDLOG_INFO("Constructed Nnet3Data");
 }

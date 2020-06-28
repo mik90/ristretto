@@ -69,6 +69,7 @@ public:
   std::unique_ptr<SingleUtteranceNnet3Decoder> decoder_ptr;
   std::unique_ptr<OnlineSilenceWeighting> silence_weighting_ptr;
   std::unique_ptr<OnlineNnet2FeaturePipelineInfo> feature_info_ptr;
+  std::unique_ptr<nnet3::DecodableNnetSimpleLoopedInfo> decodable_info_ptr;
 
   std::vector<std::pair<int32, BaseFloat>> delta_weights;
   std::mutex decoder_mutex;

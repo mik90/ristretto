@@ -10,11 +10,12 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
   mik::Utils::createLogger();
 
-  mik::AlsaConfig config;
-  config.samplingFreq_Hz = 8000;
-  mik::AlsaInterface alsa(config);
-
   const auto audioData = mik::Utils::readInAudioFile("./test/resources/ClientTestAudio8KHz.raw");
+  // TODO Remove Debug audio data
+  SPDLOG_DEBUG("audioData as int8_t");
+  for (size_t i = 0; i < audioData.size(); ++i) {
+    SPDLOG_DEBUG("audioData[{}]:{}", i, static_cast<int8_t>(audioData[i]));
+  }
 
   mik::TcpClient client;
   // Could also do localhost "127.0.0.1"
@@ -31,7 +32,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   client.sendAudioToServer(audioData);
 
   const auto result = client.getResultFromServer();
-  fmt::print("Result:\n{}\n", result);
+  fmt::print("Result:\n\"{}\"", result);
 
   return 0;
 }

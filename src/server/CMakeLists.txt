@@ -10,15 +10,14 @@ target_link_libraries(protoObjects PRIVATE
     project_options
 )
 
-add_executable(RistrettoServer 
-    main.cpp
+add_library(RistrettoServerCore
     Utils.cpp
     KaldiInterface.cpp
     RistrettoServer.cpp
 )
 
 # Turn spdlog onto the DEBUG level
-target_compile_definitions(RistrettoServer PUBLIC SPDLOG_ACTIVE_LEVEL=1)
+target_compile_definitions(RistrettoServerCore PUBLIC SPDLOG_ACTIVE_LEVEL=1)
 
 # These keep disappearing in my cache, unsure why??
 set(CMAKE_CXX_FLAGS_DEBUG "-ggdb -Og -DDEBUG")
@@ -26,11 +25,12 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g -DNDEBUG")
 set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -DNDEBUG")
 
-target_include_directories(RistrettoServer PRIVATE
+target_include_directories(RistrettoServerCore PUBLIC
     "${CMAKE_BINARY_DIR}/src"
+    "."
 )
 
-target_link_libraries(RistrettoServer PRIVATE
+target_link_libraries(RistrettoServerCore PUBLIC
     # Generated files throw warnings so compile them separately
     protoObjects
     # Project settings
@@ -73,4 +73,12 @@ target_link_libraries(RistrettoServer PRIVATE
     kaldi-kws
     kaldi-cudafeat
     kaldi-cudadecoder
+)
+
+add_executable(RistrettoServer 
+    main.cpp
+)
+
+target_link_libraries(RistrettoServer PRIVATE
+    RistrettoServerCore
 )

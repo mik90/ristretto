@@ -5,7 +5,7 @@
 
 namespace mik {
 
-void createLogger() {
+void Utils::createLogger() {
   static std::atomic<bool> hasBeenCalled(false);
   if (hasBeenCalled.load()) {
     return;

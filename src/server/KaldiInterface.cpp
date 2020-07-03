@@ -39,31 +39,77 @@
 
 namespace kaldi {
 
+std::vector<int16_t> convertStringToInt16(const std::string& str) {
+  static_assert(2 * sizeof(char) == sizeof(int16_t));
+
+  std::vector<int16_t> converted_buffer;
+  size_t values_to_convert = str.length();
+  bool add_extra_val_at_end = false;
+
+  // Length is odd
+  if (values_to_convert % 2 != 0) {
+    // TODO Make this neater, just ensure that it's an even value
+    values_to_convert--;
+    add_extra_val_at_end = true;
+  }
+  for (size_t i = 0; i < values_to_convert; i += 2) {
+    SPDLOG_DEBUG("DEBUG: str[{}]:{}", i, static_cast<int32_t>(str[i]));
+    SPDLOG_DEBUG("DEBUG: str[{} + 1]:{}", i + 1, static_cast<int32_t>(str[i + 1]));
+    // Combine 2 chars into a 16 bit value
+    const auto upper = static_cast<uint32_t>(str[i]);
+    const auto lower = static_cast<uint32_t>(str[i + 1]);
+    constexpr uint32_t bits_to_shift_by = 8;
+    const auto combined = static_cast<int16_t>((upper << bits_to_shift_by) | lower);
+    SPDLOG_DEBUG("DEBUG: combined (int16_t):{}", combined);
+    converted_buffer.push_back(combined);
+  }
+
+  if (add_extra_val_at_end) {
+    converted_buffer.push_back(static_cast<int16_t>(str.back()));
+  }
+
+  return converted_buffer;
+}
+
 Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioDataPtr) {
 
   if (!audioDataPtr) {
     SPDLOG_ERROR("audioDataPtr was null!");
     return {};
-  }
-  if (audioDataPtr->empty()) {
+  } else if (audioDataPtr->empty()) {
     SPDLOG_ERROR("audioData was empty!");
     return {};
   }
-
-  const auto length = static_cast<MatrixIndexT>(audioDataPtr->length());
-  Vector<BaseFloat> floatAudioData;
-  // Ensure that there's enough space in the output Vector
-  floatAudioData.Resize(length, kUndefined);
-  SPDLOG_DEBUG("audioDataPtr->length():{}", length);
-  SPDLOG_DEBUG("After Resize, floatAudioData.SizeInBytes():{}", floatAudioData.SizeInBytes());
-
-  for (auto i = 0; i < length; ++i) {
-    // Convert each char in audioDataPtr into a BaseFloat for floatAudioData
-    // operator () is used for indexing apparently
-    floatAudioData(i) = static_cast<BaseFloat>((*audioDataPtr)[static_cast<size_t>(i)]);
+  SPDLOG_DEBUG("audioDataPtr string as int32 (first 20 values)");
+  for (size_t i = 0; i < 20; i += 2) {
+    SPDLOG_DEBUG("EVEN audioDataPtr->at({}):{}", i, static_cast<int32_t>(audioDataPtr->at(i)));
+    SPDLOG_DEBUG("ODD audioDataPtr->at({}):{}", i + 1,
+                 static_cast<int32_t>(audioDataPtr->at(i + 1)));
   }
-  SPDLOG_DEBUG("After conversion, floatAudioData.SizeInBytes():{}", floatAudioData.SizeInBytes());
-  return floatAudioData;
+  const auto buffer_int16 = convertStringToInt16(*audioDataPtr);
+  SPDLOG_DEBUG("buffer_int16 (first 20 values)");
+  for (size_t i = 0; i < 20; ++i) {
+    SPDLOG_DEBUG("buffer_int16({}):{}", i, buffer_int16[i]);
+  }
+  const size_t buffer_size = buffer_int16.size();
+  SPDLOG_DEBUG("buffer_int16.size():{}", buffer_size);
+
+  Vector<BaseFloat> audio_data_float;
+  // Ensure that there's enough space in the output Vector
+  audio_data_float.Resize(static_cast<MatrixIndexT>(buffer_size), kUndefined);
+
+  for (size_t i = 0; i < buffer_size; ++i) {
+    // Convert each char in audioDataPtr into a BaseFloat for audio_data_float
+    // operator () is used for indexing Kaldi vectors
+    audio_data_float(static_cast<MatrixIndexT>(i)) = static_cast<BaseFloat>(buffer_int16[i]);
+  }
+  SPDLOG_DEBUG("audio_data_float.SizeInBytes():{}", audio_data_float.SizeInBytes());
+
+  SPDLOG_DEBUG("audio_data_float (first 20 values)");
+  for (int i = 0; i < 20; ++i) {
+    SPDLOG_DEBUG("audio_data_float({}):{}", i, audio_data_float(i));
+  }
+  return audio_data_float;
 }
 
 // --------------------------------------------------------------------------------------
@@ -73,8 +119,8 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 
   SPDLOG_DEBUG("decodeAudioChunk entry");
   const Vector<BaseFloat> complete_audio_data = convertBytesToFloatVec(std::move(audioDataPtr));
-  const auto complete_audio_size_in_bytes = complete_audio_data.SizeInBytes();
-  SPDLOG_DEBUG("complete_audio_data size in bytes:{}", complete_audio_size_in_bytes);
+  SPDLOG_DEBUG("complete_audio_data size in bytes:{}", complete_audio_data.SizeInBytes());
+  SPDLOG_DEBUG("complete_audio_data Dim (elements):{}", complete_audio_data.Dim());
 
   SPDLOG_DEBUG("Getting lock on mutex...");
   // No idea how thread-safe Kaldi is so naively lock at the beginning of this method
@@ -103,10 +149,8 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
   try {
     std::string output;
     size_t iteration_count = 0;
-    SPDLOG_DEBUG("total audio bytes / chunk_len == {}",
-                 complete_audio_size_in_bytes / static_cast<int32>(chunk_len));
     while (true) {
-      SPDLOG_DEBUG("iteration_count {}", iteration_count++);
+      SPDLOG_DEBUG("iteration_count {} ", iteration_count);
 
       // Get a usable chunk out of the audio data, this range will keep moving over the entire audio
       // data range
@@ -123,24 +167,23 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
       }
 
       // Equivalent to GetChunk
-      SPDLOG_DEBUG("creating sub audio_chunk with Range({},{})", samp_count, samples_to_read);
+      SPDLOG_DEBUG("creating SubVector with Range({},{})", samp_count, samples_to_read);
       const auto sub_vec = complete_audio_data.Range(samp_count, samples_to_read);
-      SPDLOG_DEBUG("created sub audio_chunk dim: {}, size in bytes:{}", sub_vec.Dim(),
+      SPDLOG_DEBUG("created SubVector dim: {}, size in bytes:{}", sub_vec.Dim(),
                    sub_vec.SizeInBytes());
-      SPDLOG_DEBUG("creating audio_chunk copy of sub chunk");
+      SPDLOG_DEBUG("creating audio_chunk copy of SubVector");
       Vector<BaseFloat> audio_chunk(sub_vec);
-      SPDLOG_DEBUG("created audio_chunk copy of sub chunk dim: {}, size in bytes:{}",
+      SPDLOG_DEBUG("created audio_chunk copy of SubVector dim: {}, size in bytes:{}",
                    audio_chunk.Dim(), audio_chunk.SizeInBytes());
+
+      SPDLOG_DEBUG("GetChunk as BaseFloat (first 20 values)");
+      for (int i = 0; i < 20; ++i) {
+        SPDLOG_DEBUG("audio_chunk({}):{}", i, audio_chunk(i));
+      }
 
       feature_pipeline_ptr->AcceptWaveform(samp_freq, audio_chunk);
       samp_count += static_cast<int32>(chunk_len);
       SPDLOG_INFO("Chunk length:{}, Total sample count:{}", chunk_len, samp_count);
-      const auto num_frames_ready = feature_pipeline_ptr->NumFramesReady();
-      const auto frame_shift_sec = feature_pipeline_ptr->FrameShiftInSeconds();
-      const auto feature_dim = feature_pipeline_ptr->Dim();
-      SPDLOG_DEBUG(
-          "feature_pipeline_ptr info: NumFramesReady is {}, FrameShiftInSeconds is {}, Dim is {}",
-          num_frames_ready, frame_shift_sec, feature_dim);
 
       if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
         silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
@@ -155,12 +198,12 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
       decoder_ptr->AdvanceDecoding();
       SPDLOG_DEBUG("Decoding advanced");
 
-      SPDLOG_DEBUG("samp_count:{}, check_count:{}", samp_count, check_count);
+      // SPDLOG_DEBUG("samp_count:{}, check_count:{}", samp_count, check_count);
       if (samp_count > check_count) {
+        SPDLOG_DEBUG("samp_count:{} > check_count:{}", samp_count, check_count);
         const auto num_frames_decoded = decoder_ptr->NumFramesDecoded();
-        SPDLOG_DEBUG("decoded {} frames", num_frames_decoded);
         if (num_frames_decoded > 0) {
-          SPDLOG_DEBUG("decoded some {} frames!", num_frames_decoded);
+          SPDLOG_DEBUG("decoded {} frames", num_frames_decoded);
           Lattice lat;
           decoder_ptr->GetBestPath(/* end of utt */ false, &lat);
           TopSort(&lat); // for LatticeStateTimes(),
@@ -202,6 +245,7 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
         output += msg;
         break;
       }
+      SPDLOG_DEBUG("end of iteration {} ", iteration_count++);
     } // end of while(true) loop
 
     SPDLOG_INFO("Input finished");
@@ -341,6 +385,12 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
   check_period = static_cast<int32>(samp_freq * output_period);
   check_count = check_period;
   frame_offset = 0;
+
+  SPDLOG_INFO("Config options:");
+  SPDLOG_INFO("       samp_freq: {} Hz", samp_freq);
+  SPDLOG_INFO("    chunk_length: {} seconds", chunk_length_secs);
+  SPDLOG_INFO("    chunk_length: {} samples", chunk_len);
+  SPDLOG_INFO("     check_count: {} samples", check_period);
 
   feature_pipeline_ptr = std::make_unique<OnlineNnet2FeaturePipeline>(*feature_info_ptr);
   SPDLOG_DEBUG("Constructed OnlineNnet2FeaturePipeline");

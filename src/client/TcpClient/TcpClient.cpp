@@ -1,6 +1,5 @@
 #include <boost/asio.hpp>
 #include <fmt/core.h>
-#include <fmt/locale.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -14,6 +13,7 @@ namespace mik {
 
 TcpClient::TcpClient() : ioContext_(), socket_(ioContext_) {
   SPDLOG_INFO("--------------------------------------------");
+  SPDLOG_INFO("KaldiClient created.");
   SPDLOG_INFO("TcpClient created.");
   SPDLOG_INFO("--------------------------------------------");
 }
@@ -49,12 +49,10 @@ size_t TcpClient::sendAudioToServer(const std::vector<char>& buffer) {
 
   try {
     const boost::asio::const_buffer boostBuffer(buffer.data(), buffer.size());
-    SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"), "Boost buffer is {:L} bytes large",
-                             boostBuffer.size()));
+    SPDLOG_INFO("Boost buffer is {} bytes large", boostBuffer.size());
 
     const auto bytesWritten = boost::asio::write(socket_, boostBuffer);
-    SPDLOG_DEBUG(fmt::format(std::locale("en_US.UTF-8"), "Wrote {:L} bytes of audio to the socket",
-                             bytesWritten));
+    SPDLOG_INFO("Wrote {} bytes of audio to the socket", bytesWritten);
 
     return bytesWritten;
   } catch (const boost::system::system_error& e) {

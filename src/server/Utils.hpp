@@ -1,4 +1,12 @@
 #pragma once
+
+#include <string_view>
+
 namespace mik {
-void createLogger();
-}
+
+class Utils {
+public:
+  static void createLogger();
+};
+
+} // namespace mik

@@ -43,7 +43,9 @@ namespace kaldi {
 // convertStringToInt16
 // --------------------------------------------------------------------------------------
 std::vector<int16_t> convertStringToInt16(const std::string& str) {
-  static_assert(2 * sizeof(char) == sizeof(int16_t));
+  // Expect that two chars will be the same size of an int16_t
+  // Since this function relies upon combining two chars into an int16
+  static_assert((2 * sizeof(char)) == sizeof(int16_t));
 
   std::vector<int16_t> converted_buffer;
   size_t values_to_convert = str.length();
@@ -299,7 +301,7 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 }
 
 // --------------------------------------------------------------------------------------
-// Nnet3Data::Constructor
+// Nnet3Data::Nnet3Data
 // --------------------------------------------------------------------------------------
 Nnet3Data::Nnet3Data(int argc, char* argv[])
     : feature_opts(), decodable_opts(), decoder_opts(), endpoint_opts() {
@@ -406,6 +408,9 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
   SPDLOG_INFO("Constructed Nnet3Data");
 }
 
+// --------------------------------------------------------------------------------------
+// LatticeTostring
+// --------------------------------------------------------------------------------------
 std::string LatticeToString(const Lattice& lat, const fst::SymbolTable& word_syms) {
   LatticeWeight weight;
   std::vector<int32> alignment;
@@ -424,20 +429,9 @@ std::string LatticeToString(const Lattice& lat, const fst::SymbolTable& word_sym
   return msg.str();
 }
 
-std::string GetTimeString(int32 t_beg, int32 t_end, BaseFloat time_unit) {
-  char buffer[100];
-  double t_beg2 = static_cast<BaseFloat>(t_beg) * time_unit;
-  double t_end2 = static_cast<BaseFloat>(t_end) * time_unit;
-  snprintf(buffer, 100, "%.2f %.2f", t_beg2, t_end2);
-  return std::string(buffer);
-}
-
-int32 GetLatticeTimeSpan(const Lattice& lat) {
-  std::vector<int32> times;
-  LatticeStateTimes(lat, &times);
-  return times.back();
-}
-
+// --------------------------------------------------------------------------------------
+// LatticeToString
+// --------------------------------------------------------------------------------------
 std::string LatticeToString(const CompactLattice& clat, const fst::SymbolTable& word_syms) {
   if (clat.NumStates() == 0) {
     KALDI_WARN << "Empty lattice.";
@@ -449,6 +443,26 @@ std::string LatticeToString(const CompactLattice& clat, const fst::SymbolTable& 
   Lattice best_path_lat;
   ConvertLattice(best_path_clat, &best_path_lat);
   return LatticeToString(best_path_lat, word_syms);
+}
+
+// --------------------------------------------------------------------------------------
+// GetTimeString
+// --------------------------------------------------------------------------------------
+std::string GetTimeString(int32 t_beg, int32 t_end, BaseFloat time_unit) {
+  char buffer[100];
+  double t_beg2 = static_cast<BaseFloat>(t_beg) * time_unit;
+  double t_end2 = static_cast<BaseFloat>(t_end) * time_unit;
+  snprintf(buffer, 100, "%.2f %.2f", t_beg2, t_end2);
+  return std::string(buffer);
+}
+
+// --------------------------------------------------------------------------------------
+// GetLatticeTimeSpan
+// --------------------------------------------------------------------------------------
+int32 GetLatticeTimeSpan(const Lattice& lat) {
+  std::vector<int32> times;
+  LatticeStateTimes(lat, &times);
+  return times.back();
 }
 
 } // namespace kaldi

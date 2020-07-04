@@ -39,6 +39,9 @@
 
 namespace kaldi {
 
+// --------------------------------------------------------------------------------------
+// convertStringToInt16
+// --------------------------------------------------------------------------------------
 std::vector<int16_t> convertStringToInt16(const std::string& str) {
   static_assert(2 * sizeof(char) == sizeof(int16_t));
 
@@ -49,18 +52,16 @@ std::vector<int16_t> convertStringToInt16(const std::string& str) {
   // Length is odd
   if (values_to_convert % 2 != 0) {
     // TODO Make this neater, just ensure that it's an even value
+    SPDLOG_DEBUG("DEBUG: values_to_convert is odd:{}", values_to_convert);
     values_to_convert--;
     add_extra_val_at_end = true;
   }
   for (size_t i = 0; i < values_to_convert; i += 2) {
-    SPDLOG_DEBUG("DEBUG: str[{}]:{}", i, static_cast<int32_t>(str[i]));
-    SPDLOG_DEBUG("DEBUG: str[{} + 1]:{}", i + 1, static_cast<int32_t>(str[i + 1]));
     // Combine 2 chars into a 16 bit value
-    const auto upper = static_cast<uint32_t>(str[i]);
-    const auto lower = static_cast<uint32_t>(str[i + 1]);
+    const auto lower = static_cast<uint32_t>(str[i]);
+    const auto upper = static_cast<uint32_t>(str[i + 1]);
     constexpr uint32_t bits_to_shift_by = 8;
     const auto combined = static_cast<int16_t>((upper << bits_to_shift_by) | lower);
-    SPDLOG_DEBUG("DEBUG: combined (int16_t):{}", combined);
     converted_buffer.push_back(combined);
   }
 
@@ -71,6 +72,9 @@ std::vector<int16_t> convertStringToInt16(const std::string& str) {
   return converted_buffer;
 }
 
+// --------------------------------------------------------------------------------------
+// convertBytesToFloatVec
+// --------------------------------------------------------------------------------------
 Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioDataPtr) {
 
   if (!audioDataPtr) {
@@ -113,7 +117,7 @@ Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioDataP
 }
 
 // --------------------------------------------------------------------------------------
-// Nnet3 decodeAudio
+// Nnet3Data::decodeAudio
 // --------------------------------------------------------------------------------------
 std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 
@@ -295,7 +299,7 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 }
 
 // --------------------------------------------------------------------------------------
-// Nnet3 Constructor
+// Nnet3Data::Constructor
 // --------------------------------------------------------------------------------------
 Nnet3Data::Nnet3Data(int argc, char* argv[])
     : feature_opts(), decodable_opts(), decoder_opts(), endpoint_opts() {

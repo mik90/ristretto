@@ -40,44 +40,9 @@
 namespace kaldi {
 
 // --------------------------------------------------------------------------------------
-// convertStringToInt16
+// deserializeAudioData
 // --------------------------------------------------------------------------------------
-std::vector<int16_t> convertStringToInt16(const std::string& str) {
-  // Expect that two chars will be the same size of an int16_t
-  // Since this function relies upon combining two chars into an int16
-  static_assert((2 * sizeof(char)) == sizeof(int16_t));
-
-  std::vector<int16_t> converted_buffer;
-  size_t values_to_convert = str.length();
-  bool add_extra_val_at_end = false;
-
-  // Length is odd
-  if (values_to_convert % 2 != 0) {
-    // TODO Make this neater, just ensure that it's an even value
-    SPDLOG_DEBUG("DEBUG: values_to_convert is odd:{}", values_to_convert);
-    values_to_convert--;
-    add_extra_val_at_end = true;
-  }
-  for (size_t i = 0; i < values_to_convert; i += 2) {
-    // Combine 2 chars into a 16 bit value
-    const auto lower = static_cast<uint32_t>(str[i]);
-    const auto upper = static_cast<uint32_t>(str[i + 1]);
-    constexpr uint32_t bits_to_shift_by = 8;
-    const auto combined = static_cast<int16_t>((upper << bits_to_shift_by) | lower);
-    converted_buffer.push_back(combined);
-  }
-
-  if (add_extra_val_at_end) {
-    converted_buffer.push_back(static_cast<int16_t>(str.back()));
-  }
-
-  return converted_buffer;
-}
-
-// --------------------------------------------------------------------------------------
-// convertBytesToFloatVec
-// --------------------------------------------------------------------------------------
-Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioDataPtr) {
+Vector<BaseFloat> deserializeAudioData(std::unique_ptr<std::string> audioDataPtr) {
 
   if (!audioDataPtr) {
     SPDLOG_ERROR("audioDataPtr was null!");
@@ -86,35 +51,34 @@ Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioDataP
     SPDLOG_ERROR("audioData was empty!");
     return {};
   }
-  SPDLOG_DEBUG("audioDataPtr string as int32 (first 20 values)");
-  for (size_t i = 0; i < 20; i += 2) {
-    SPDLOG_DEBUG("EVEN audioDataPtr->at({}):{}", i, static_cast<int32_t>(audioDataPtr->at(i)));
-    SPDLOG_DEBUG("ODD audioDataPtr->at({}):{}", i + 1,
-                 static_cast<int32_t>(audioDataPtr->at(i + 1)));
+  if (audioDataPtr->length() % 2 != 0) {
+    // Length is odd, just add an empty value to the end so the bitshifting logic won't be broken
+    audioDataPtr->push_back(0x0);
   }
-  const auto buffer_int16 = convertStringToInt16(*audioDataPtr);
-  SPDLOG_DEBUG("buffer_int16 (first 20 values)");
-  for (size_t i = 0; i < 20; ++i) {
-    SPDLOG_DEBUG("buffer_int16({}):{}", i, buffer_int16[i]);
-  }
-  const size_t buffer_size = buffer_int16.size();
-  SPDLOG_DEBUG("buffer_int16.size():{}", buffer_size);
 
-  Vector<BaseFloat> audio_data_float;
-  // Ensure that there's enough space in the output Vector
-  audio_data_float.Resize(static_cast<MatrixIndexT>(buffer_size), kUndefined);
+  const size_t input_length = audioDataPtr->length();
+  const size_t output_length = input_length / 2;
 
-  for (size_t i = 0; i < buffer_size; ++i) {
-    // Convert each char in audioDataPtr into a BaseFloat for audio_data_float
-    // operator () is used for indexing Kaldi vectors
-    audio_data_float(static_cast<MatrixIndexT>(i)) = static_cast<BaseFloat>(buffer_int16[i]);
-  }
-  SPDLOG_DEBUG("audio_data_float.SizeInBytes():{}", audio_data_float.SizeInBytes());
+  // The output vector should have half the elements of the input std::string
+  // Every 2 input chars in the string will be combined together to make one output element
+  Vector<BaseFloat> audio_data_float(static_cast<MatrixIndexT>(output_length), kUndefined);
 
-  SPDLOG_DEBUG("audio_data_float (first 20 values)");
-  for (int i = 0; i < 20; ++i) {
-    SPDLOG_DEBUG("audio_data_float({}):{}", i, audio_data_float(i));
+  // Expect that two chars will be the same size of an int16_t
+  // Since this function relies upon combining two chars into an int16
+  static_assert((2 * sizeof(char)) == sizeof(int16_t));
+
+  size_t input_idx = 0;
+  MatrixIndexT output_idx = 0;
+  while (input_idx < input_length) {
+    // Combine 2 chars into a 16 bit value
+    const auto lower = static_cast<uint32_t>((*audioDataPtr)[input_idx++]);
+    const auto upper = static_cast<uint32_t>((*audioDataPtr)[input_idx++]);
+    constexpr uint8_t bits_to_shift_by = 8;
+    const auto combined_int16 = static_cast<int16_t>((upper << bits_to_shift_by) | lower);
+    // Convert the int16 to a BaseFloat
+    audio_data_float(output_idx++) = static_cast<BaseFloat>(combined_int16);
   }
+
   return audio_data_float;
 }
 
@@ -124,7 +88,7 @@ Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioDataP
 std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 
   SPDLOG_DEBUG("decodeAudioChunk entry");
-  const Vector<BaseFloat> complete_audio_data = convertBytesToFloatVec(std::move(audioDataPtr));
+  const Vector<BaseFloat> complete_audio_data = deserializeAudioData(std::move(audioDataPtr));
   SPDLOG_DEBUG("complete_audio_data size in bytes:{}", complete_audio_data.SizeInBytes());
   SPDLOG_DEBUG("complete_audio_data Dim (elements):{}", complete_audio_data.Dim());
 

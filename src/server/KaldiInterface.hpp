@@ -91,7 +91,7 @@ private:
   std::mutex decoder_mutex;
 };
 
-std::vector<int16_t> convertStringToInt16(const std::string& str);
+Vector<BaseFloat> deserializeAudioData(std::unique_ptr<std::string> audioDataPtr);
 
 int runDecodeServer(int argc, char* argv[]);
 

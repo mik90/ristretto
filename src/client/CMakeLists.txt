@@ -37,6 +37,7 @@ target_link_libraries(RistrettoClientLib PUBLIC
     # Conan packages
     CONAN_PKG::fmt
     CONAN_PKG::spdlog
+    CONAN_PKG::docopt.cpp
     # System-included gRPC/protobuf
     protobuf
     grpc++_unsecure

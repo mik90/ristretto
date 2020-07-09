@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package ristretto;
+package RistrettoProto;
 
 // ============= Service =============
 service Decoder {

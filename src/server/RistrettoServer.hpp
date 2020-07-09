@@ -29,26 +29,26 @@ private:
   // Thread safe
   void handleRpcs();
   std::unique_ptr<grpc::ServerCompletionQueue> cq_;
-  ristretto::Decoder::AsyncService service_;
+  RistrettoProto::Decoder::AsyncService service_;
   std::unique_ptr<grpc::Server> server_;
   kaldi::Nnet3Data nnet3_;
 };
 
 class CallData {
 public:
-  CallData(ristretto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq,
+  CallData(RistrettoProto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq,
            std::function<std::string(std::unique_ptr<std::string>)> decoderFunc);
   void proceed(std::function<std::string(std::unique_ptr<std::string>)> decoderFunc);
 
 private:
-  ristretto::Decoder::AsyncService* service_;
+  RistrettoProto::Decoder::AsyncService* service_;
   grpc::ServerCompletionQueue* cq_;
   grpc::ServerContext ctx_;
 
-  ristretto::AudioData audioData_;
-  ristretto::Transcript transcript_;
+  RistrettoProto::AudioData audioData_;
+  RistrettoProto::Transcript transcript_;
 
-  grpc::ServerAsyncResponseWriter<ristretto::Transcript> responder_;
+  grpc::ServerAsyncResponseWriter<RistrettoProto::Transcript> responder_;
 
   enum CallStatus { CREATE, PROCESS, FINISH };
   CallStatus status_;

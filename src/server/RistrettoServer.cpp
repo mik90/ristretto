@@ -45,7 +45,7 @@ void RistrettoServer::handleRpcs() {
   }
 }
 
-CallData::CallData(ristretto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq,
+CallData::CallData(RistrettoProto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq,
                    std::function<std::string(std::unique_ptr<std::string>)> decoderFunc)
     : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
   SPDLOG_DEBUG("Constructing CallData");

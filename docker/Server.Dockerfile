@@ -44,6 +44,8 @@ RUN apt-get update && \
 # - Kaldi defaults to OpenBLAS in CMake, so that requires an additiona package
 # Build Kaldi with the newer cmake
 # Install to /opt/kaldi/dist
+# TODO Append /opt/kaldi/dist/bin to PATH so that the kaldi scripts can find it
+#      I should be able to avoid building with the makefiles once that's done
 RUN git clone --depth 1 https://github.com/kaldi-asr/kaldi.git /opt/kaldi && \
   cd /opt/kaldi && \
   cd /opt/kaldi/tools && \
@@ -57,7 +59,7 @@ RUN git clone --depth 1 https://github.com/kaldi-asr/kaldi.git /opt/kaldi && \
   cd /opt/kaldi/build && \
   cmake .. -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs \
   -DCMAKE_INSTALL_PREFIX=../dist \
-  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   && cmake --build . --parallel $(nproc) --target install
 
 # Clean up the cache

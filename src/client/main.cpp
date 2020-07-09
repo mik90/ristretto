@@ -21,6 +21,12 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
     return 1;
   }
 
+  // TODO Remove Debug audio data
+  SPDLOG_DEBUG("audioData as int8_t (first 20 values)");
+  for (size_t i = 0; i < 20; ++i) {
+    SPDLOG_DEBUG("audioData[{}]:{}", i, static_cast<int8_t>(audioData[i]));
+  }
+
   const auto transcript = client.decodeAudio(audioData);
   if (transcript.empty()) {
     fmt::print("Response was empty!\n");

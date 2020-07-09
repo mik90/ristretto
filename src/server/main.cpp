@@ -6,7 +6,7 @@
 #include "Utils.hpp"
 
 int main(int argc, char* argv[]) {
-  mik::createLogger();
+  mik::Utils::createLogger();
   fmt::print("Created logger\n");
   mik::RistrettoServer server(argc, argv);
   fmt::print("Created server\n");

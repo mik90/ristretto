@@ -1,15 +1,19 @@
 #!/bin/sh
 set -e
 
+run_protoc()
+{
+    echo "Running clientEntry.sh::run_protoc()"
+    cd /opt/ristretto
+    ./runProtoc.sh
+}
+
 run_build()
 {
     echo "Running clientEntry.sh::run_build()"
-    if [ "$SKIP_PROTOC" != "YES" ]; then
-        ./runProtoc.sh
-    fi
     cd /opt/ristretto/build
     cmake .. -DBUILD_SERVER=OFF -DBUILD_CLIENT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -G Ninja
-    cmake --build . --parallel $(nproc)
+    cmake --build . --target RistrettoClient --parallel $(nproc)
     cd -
 }
 
@@ -20,13 +24,13 @@ run_tests()
     #ctest . -E "USER_INPUT|REQUIRES_SERVER"
 
     # Test resources are copied into bin
-    pushd /opt/ristretto/build/bin
-    TEST_BINARY="./ClientTest"
+    cd /opt/ristretto
+    TEST_BINARY="./build/bin/ClientTest"
     GTEST_ARGS=" --gtest_filter=-*USER_INPUT*:*REQUIRES_SERVER* "
     test -f $TEST_BINARY || { echo "$TEST_BINARY does not exist, have you built it yet?"; exit 1; }
     CMD="$TEST_BINARY $GTEST_ARGS"
     eval $CMD
-    popd
+    cd -
 }
 
 start_client()
@@ -40,6 +44,9 @@ start_client()
 main()
 {
     cd /opt/ristretto
+    if [ "$SKIP_PROTOC" != "YES" ]; then
+        run_protoc
+    fi
     if [ "$SKIP_BUILD" != "YES" ]; then
         run_build
     fi

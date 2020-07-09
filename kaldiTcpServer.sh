@@ -1,32 +1,17 @@
 #!/bin/bash
 set -e
 
-run_protoc()
+build()
 {
-    echo "Running serverEntry.sh::run_protoc()"
-    cd /opt/ristretto
-    ./runProtoc.sh
+    echo "Running kaldiTcpServer.sh::build()"
+    cd ../kaldi/src
+    make
+    cd -
 }
-
-run_build()
-{
-    echo "Running serverEntry.sh::run_build()"
-    pushd /opt/ristretto/build
-    if [ "$DEBUG" != "YES" ]; then
-        BUILD_TYPE="RelWithDebInfo"
-    else
-        # Debugging ~enabled~
-        BUILD_TYPE="Debug"
-    fi
-    cmake .. -DBUILD_SERVER=ON -DBUILD_CLIENT=OFF -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -G Ninja
-    cmake --build . --target RistrettoServer --parallel $(nproc)
-    popd
-}
-
 
 start_server()
 {
-    echo "Running serverEntry.sh::start_server()"
+    echo "Running kaldiTcpServer.sh::start_server()"
 
     ulimit -c unlimited
 
@@ -47,26 +32,26 @@ start_server()
     --beam=15.0 --lattice-beam=6.0 --acoustic-scale=1.0 \
     --port-num=5050 ${MODEL} ${HCLG} ${WORDS}"
 
-    pushd /opt/ristretto
-
+    if [ -f "/opt/ristretto/logs/kaldi-server.log" ]; then
+        rm /opt/ristretto/logs/kaldi-server.log
+    fi
+    pushd /opt/kaldi
     if [ "$DEBUG" != "YES" ]; then
-        ./build/bin/RistrettoServer $ARGS
+        # Write to both the terminal and kaldi.log
+        ./src/online2bin/online2-tcp-nnet3-decode-faster $ARGS  2>&1 | tee /opt/ristretto/logs/kaldi-server.log
     else
         # Debugging ~enabled~
-        gdb --quiet -ex run --args ./build/bin/RistrettoServer $ARGS
+        gdb --quiet -ex run --args ./src/online2bin/online2-tcp-nnet3-decode-faster $ARGS 2>&1 | tee /opt/ristretto/logs/kaldi-server.log
     fi
     popd
 }
 
 main()
 {
-    echo "Running serverEntry.sh"
-    cd /opt/ristretto
-    if [ "$SKIP_PROTOC" != "YES" ]; then
-        run_protoc
-    fi
+    echo "Running kaldiTcpServer.sh"
+    cd /opt/kaldi
     if [ "$SKIP_BUILD" != "YES" ]; then
-        run_build
+        build
     fi
     if [ "$SKIP_RUN" != "YES" ]; then
         start_server

@@ -1,7 +1,4 @@
 {
-    "C_Cpp.intelliSenseEngineFallback": "Enabled",
-    "cmake.configureOnOpen": false,
-    "editor.formatOnSave": true,
-    "python.linting.pylintEnabled": true,
-    "python.linting.enabled": true
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "cmake.configureOnOpen": true
 }

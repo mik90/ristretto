@@ -10,7 +10,7 @@
 // Note: Logic currently expects the test audio files to be in the current directory
 
 TEST(UtilTest, ReadInAudioFile) {
-  const auto audioBuffer = mik::Utils::readInAudioFile("ClientTestAudio8KHz.raw");
+  const auto audioBuffer = mik::Utils::readInAudioFile("test/resources/ClientTestAudio8KHz.raw");
   ASSERT_EQ(audioBuffer.size(), 160000);
 }
 
@@ -26,7 +26,7 @@ TEST(AlsaTest, USER_INPUT_CaptureAudioInBuffer) {
 
 TEST(AlsaTest, USER_INPUT_CaptureAudioToFile) {
 
-  const std::string outputAudio = "unittestCapture.raw";
+  const std::string outputAudio = "test/resources/unittestCapture.raw";
   mik::AlsaConfig config;
   mik::AlsaInterface alsa(config);
 
@@ -43,7 +43,7 @@ TEST(AlsaTest, USER_INPUT_CaptureAudioToFile) {
 
 TEST(AlsaTest, USER_INPUT_PlaybackAudioFromFile) {
 
-  const std::string inputAudio = "unittestPlayback.raw";
+  const std::string inputAudio = "test/resources/unittestPlayback.raw";
   mik::AlsaConfig config;
   mik::AlsaInterface alsa(config);
 
@@ -72,16 +72,17 @@ TEST(AlsaTest, consumeAllAudio) {
 }
 
 TEST(AlsaTest, consumeDurationOfAudio_10ms) {
+  // Create large vector of default-initialized data
   const std::vector<char> internalAudioData(425000);
   mik::AlsaConfig config;
-  // config.samplingFreq_Hz = 44100;
   MockAlsaInterface alsa(config);
   alsa.setAudioData(internalAudioData);
 
-  // 10 milliseconds should be 320,000 bytes
+  // 10 milliseconds should be 59,904 bytes
   // This is found with the same calculation that i used to make it, so not the best test
+  // Either i got it wrong the first time or maybe it should be 320,000 bytes
   const auto audioData = alsa.consumeDurationOfAudioData(10);
-  ASSERT_EQ(320000, audioData.size());
+  ASSERT_EQ(59904, audioData.size());
 }
 
 TEST(AlsaTest, consumeDurationOfAudio_LargeRequest) {

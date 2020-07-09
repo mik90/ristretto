@@ -32,6 +32,7 @@
 #include "online2/onlinebin-util.h"
 #include "util/kaldi-thread.h"
 
+#include <cstring>
 #include <spdlog/spdlog.h>
 #include <string>
 
@@ -39,128 +40,220 @@
 
 namespace kaldi {
 
-Vector<BaseFloat> convertBytesToFloatVec(std::unique_ptr<std::string> audioDataPtr) {
+// --------------------------------------------------------------------------------------
+// deserializeAudioData
+// --------------------------------------------------------------------------------------
+Vector<BaseFloat> deserializeAudioData(std::unique_ptr<std::string> audioDataPtr) {
 
   if (!audioDataPtr) {
     SPDLOG_ERROR("audioDataPtr was null!");
     return {};
-  }
-  if (audioDataPtr->empty()) {
+  } else if (audioDataPtr->empty()) {
     SPDLOG_ERROR("audioData was empty!");
     return {};
   }
-
-  const auto length = static_cast<MatrixIndexT>(audioDataPtr->length());
-  Vector<BaseFloat> floatAudioData;
-  // Ensure that there's enough space in the output Vector
-  floatAudioData.Resize(length, kUndefined);
-  SPDLOG_DEBUG("audioDataPtr->length():{}", length);
-  SPDLOG_DEBUG("After Resize, floatAudioData.SizeInBytes():{}", floatAudioData.SizeInBytes());
-
-  for (auto i = 0; i < length; ++i) {
-    // Convert each char in audioDataPtr into a BaseFloat for floatAudioData
-    // operator () is used for indexing apparently
-    floatAudioData(i) = static_cast<BaseFloat>((*audioDataPtr)[static_cast<size_t>(i)]);
+  if (audioDataPtr->length() % 2 != 0) {
+    // Length is odd, just add an empty value to the end so the bitshifting logic won't be broken
+    audioDataPtr->push_back(0x0);
   }
-  SPDLOG_DEBUG("After conversion, floatAudioData.SizeInBytes():{}", floatAudioData.SizeInBytes());
-  return floatAudioData;
+
+  const size_t input_length = audioDataPtr->length();
+  const size_t output_length = input_length / 2;
+
+  std::vector<int16_t> buffer_int16(output_length);
+  if (!std::memmove(buffer_int16.data(), audioDataPtr->data(), audioDataPtr->length())) {
+    SPDLOG_ERROR("Could not memmove audio data into int16 buffer!");
+    return {};
+  }
+
+  // These vectors have the same number of elements
+  Vector<BaseFloat> audio_data_float(static_cast<MatrixIndexT>(buffer_int16.size()), kUndefined);
+
+  for (int i = 0; i < audio_data_float.Dim(); ++i) {
+    // Convert each int16 into a BaseFloat
+    audio_data_float(i) = static_cast<BaseFloat>(buffer_int16[static_cast<size_t>(i)]);
+  }
+
+  return audio_data_float;
 }
 
-std::string Nnet3Data::decodeAudioChunk(std::unique_ptr<std::string> audioDataPtr) {
+// --------------------------------------------------------------------------------------
+// Nnet3Data::decodeAudio
+// --------------------------------------------------------------------------------------
+std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 
   SPDLOG_DEBUG("decodeAudioChunk entry");
-  Vector<BaseFloat> wave_part = convertBytesToFloatVec(std::move(audioDataPtr));
-  SPDLOG_DEBUG("wave_part size in bytes:{}", wave_part.SizeInBytes());
+  const Vector<BaseFloat> complete_audio_data = deserializeAudioData(std::move(audioDataPtr));
+  SPDLOG_DEBUG("complete_audio_data size in bytes:{}, number of elements:{}",
+               complete_audio_data.SizeInBytes(), complete_audio_data.Dim());
 
   SPDLOG_DEBUG("Getting lock on mutex...");
   // No idea how thread-safe Kaldi is so naively lock at the beginning of this method
   std::lock_guard<std::mutex> lock(decoder_mutex);
   SPDLOG_DEBUG("Got lock");
 
-  feature_pipeline_ptr->AcceptWaveform(samp_freq, wave_part);
-  samp_count += static_cast<int32>(chunk_len);
-  SPDLOG_INFO("Chunk length:{}", chunk_len);
-  SPDLOG_INFO("Total sample count:{}", samp_count);
+  decoder_ptr->InitDecoding(frame_offset);
+  SPDLOG_INFO("Initialized decoding");
 
-  if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
-    silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
-    silence_weighting_ptr->GetDeltaWeights(feature_pipeline_ptr->NumFramesReady(),
-                                           frame_offset * decodable_opts.frame_subsampling_factor,
-                                           &delta_weights);
-    feature_pipeline_ptr->UpdateFrameWeights(delta_weights);
-    SPDLOG_DEBUG("Adjusted silence weighting");
+  silence_weighting_ptr = std::make_unique<OnlineSilenceWeighting>(
+      trans_model, feature_info_ptr->silence_weighting_config,
+      decodable_opts.frame_subsampling_factor);
+  SPDLOG_DEBUG("Constructed OnlineSilenceWeighting");
+
+  // For debugging purposes
+  if (!feature_pipeline_ptr) {
+    SPDLOG_ERROR("feature_pipeline_ptr was null!");
+    return {};
+  } else if (!silence_weighting_ptr) {
+    SPDLOG_ERROR("silence_weighting_ptr was null!");
+    return {};
+  } else if (!decoder_ptr) {
+    SPDLOG_ERROR("decoder_ptr was null!");
+    return {};
   }
+  try {
+    std::string output;
+    while (true) {
 
-  SPDLOG_DEBUG("Advancing decoding...");
-  decoder_ptr->AdvanceDecoding();
-  SPDLOG_DEBUG("Decoding advanced");
-  std::string output;
+      // Get a usable chunk out of the audio data, this range will keep moving over the entire audio
+      // data range
+      auto samples_to_read = complete_audio_data.Dim() - samp_count;
+      // Don't read more than a chunk
+      samples_to_read = std::min(samples_to_read, static_cast<int32>(chunk_len));
+      // Don't try to read a negative number
+      samples_to_read = std::max(0, samples_to_read);
+      SPDLOG_DEBUG("samples_to_read {} vs chunk_len {}", samples_to_read, chunk_len);
 
-  if (samp_count > check_count) {
+      if (samples_to_read == 0) {
+        SPDLOG_INFO("End of stream, no more samples left. samp_count {}", samp_count);
+        break;
+      }
+
+      // Equivalent to GetChunk
+      SPDLOG_DEBUG("creating SubVector with Range({},{})", samp_count, samples_to_read);
+      const auto sub_vec = complete_audio_data.Range(samp_count, samples_to_read);
+      SPDLOG_DEBUG("created SubVector dim: {}, size in bytes:{}", sub_vec.Dim(),
+                   sub_vec.SizeInBytes());
+      SPDLOG_DEBUG("creating audio_chunk copy of SubVector");
+      Vector<BaseFloat> audio_chunk(sub_vec);
+      SPDLOG_DEBUG("created audio_chunk copy of SubVector dim: {}, size in bytes:{}",
+                   audio_chunk.Dim(), audio_chunk.SizeInBytes());
+
+      feature_pipeline_ptr->AcceptWaveform(samp_freq, audio_chunk);
+      samp_count += static_cast<int32>(chunk_len);
+      SPDLOG_INFO("Chunk length:{}, Total sample count:{}", chunk_len, samp_count);
+
+      if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
+        silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
+        silence_weighting_ptr->GetDeltaWeights(
+            feature_pipeline_ptr->NumFramesReady(),
+            frame_offset * decodable_opts.frame_subsampling_factor, &delta_weights);
+        feature_pipeline_ptr->UpdateFrameWeights(delta_weights);
+        SPDLOG_DEBUG("Adjusted silence weighting");
+      }
+
+      SPDLOG_DEBUG("Advancing decoding...");
+      decoder_ptr->AdvanceDecoding();
+      SPDLOG_DEBUG("Decoding advanced");
+
+      // SPDLOG_DEBUG("samp_count:{}, check_count:{}", samp_count, check_count);
+      if (samp_count > check_count) {
+        SPDLOG_DEBUG("samp_count:{} > check_count:{}", samp_count, check_count);
+        const auto num_frames_decoded = decoder_ptr->NumFramesDecoded();
+        if (num_frames_decoded > 0) {
+          SPDLOG_DEBUG("decoded {} frames", num_frames_decoded);
+          Lattice lat;
+          decoder_ptr->GetBestPath(/* end of utt */ false, &lat);
+          TopSort(&lat); // for LatticeStateTimes(),
+          std::string msg = LatticeToString(lat, *word_syms);
+
+          // get time-span after previous endpoint,
+          if (produce_time) {
+            int32 t_beg = frame_offset;
+            int32 t_end = frame_offset + GetLatticeTimeSpan(lat);
+            msg = GetTimeString(t_beg, t_end,
+                                frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
+                  " " + msg;
+          }
+
+          SPDLOG_INFO("Temporary transcript: {}", msg);
+          output += msg;
+        }
+        check_count += check_period;
+      }
+
+      if (decoder_ptr->EndpointDetected(endpoint_opts)) {
+        SPDLOG_INFO("Endpoint detected");
+        decoder_ptr->FinalizeDecoding();
+        frame_offset += decoder_ptr->NumFramesDecoded();
+        CompactLattice lat;
+        decoder_ptr->GetLattice(true, &lat);
+        std::string msg = LatticeToString(lat, *word_syms);
+
+        // get time-span between endpoints,
+        if (produce_time) {
+          int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
+          int32 t_end = frame_offset;
+          msg =
+              GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
+              " " + msg;
+        }
+
+        SPDLOG_INFO("Endpoint, sending message: {}", msg);
+        output += msg;
+        break;
+      }
+    } // end of while(true) loop
+
+    SPDLOG_INFO("Input finished");
+    feature_pipeline_ptr->InputFinished();
+    if (silence_weighting_ptr->Active() && feature_pipeline_ptr->IvectorFeature() != nullptr) {
+      silence_weighting_ptr->ComputeCurrentTraceback(decoder_ptr->Decoder());
+      silence_weighting_ptr->GetDeltaWeights(feature_pipeline_ptr->NumFramesReady(),
+                                             frame_offset * decodable_opts.frame_subsampling_factor,
+                                             &delta_weights);
+      feature_pipeline_ptr->UpdateFrameWeights(delta_weights);
+      SPDLOG_DEBUG("Adjusted silence weighting");
+    }
+
+    SPDLOG_DEBUG("Advancing decoding again...");
+    decoder_ptr->AdvanceDecoding();
+    SPDLOG_DEBUG("Decoding advanced");
+    decoder_ptr->FinalizeDecoding();
+    SPDLOG_DEBUG("Decoding finalized");
+    frame_offset += decoder_ptr->NumFramesDecoded();
+    SPDLOG_DEBUG("frame_offset:{}, NumFramesDecoded:{}", frame_offset,
+                 decoder_ptr->NumFramesDecoded());
     if (decoder_ptr->NumFramesDecoded() > 0) {
-      Lattice lat;
-      decoder_ptr->GetBestPath(false, &lat);
-      TopSort(&lat); // for LatticeStateTimes(),
+      CompactLattice lat;
+      decoder_ptr->GetLattice(true, &lat);
       std::string msg = LatticeToString(lat, *word_syms);
 
-      // get time-span after previous endpoint,
+      // get time-span from previous endpoint to end of audio,
       if (produce_time) {
-        int32 t_beg = frame_offset;
-        int32 t_end = frame_offset + GetLatticeTimeSpan(lat);
+        int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
+        int32 t_end = frame_offset;
         msg = GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
               " " + msg;
       }
 
-      SPDLOG_INFO("Temporary transcript: {}", msg);
+      SPDLOG_INFO("EndOfAudio, sending message: {}", msg);
       output += msg;
     }
-    check_count += check_period;
+    return output;
+
+  } catch (const std::exception& e) {
+    SPDLOG_ERROR("Caught std::exception:{}", e.what());
+  } catch (...) {
+    SPDLOG_ERROR("Caught unknown exception");
   }
 
-  if (decoder_ptr->EndpointDetected(endpoint_opts)) {
-    SPDLOG_INFO("Endpoint detected");
-    decoder_ptr->FinalizeDecoding();
-    frame_offset += decoder_ptr->NumFramesDecoded();
-    CompactLattice lat;
-    decoder_ptr->GetLattice(true, &lat);
-    std::string msg = LatticeToString(lat, *word_syms);
-
-    // get time-span between endpoints,
-    if (produce_time) {
-      int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
-      int32 t_end = frame_offset;
-      msg = GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
-            " " + msg;
-    }
-
-    SPDLOG_INFO("Endpoint, sending message: {}", msg);
-    output += msg;
-  }
-
-  // Finish up  decoding
-  feature_pipeline_ptr->InputFinished();
-  decoder_ptr->AdvanceDecoding();
-  decoder_ptr->FinalizeDecoding();
-  frame_offset += decoder_ptr->NumFramesDecoded();
-  if (decoder_ptr->NumFramesDecoded() > 0) {
-    CompactLattice lat;
-    decoder_ptr->GetLattice(true, &lat);
-    std::string msg = LatticeToString(lat, *word_syms);
-
-    // get time-span from previous endpoint to end of audio,
-    if (produce_time) {
-      int32 t_beg = frame_offset - decoder_ptr->NumFramesDecoded();
-      int32 t_end = frame_offset;
-      msg = GetTimeString(t_beg, t_end, frame_shift * static_cast<BaseFloat>(frame_subsampling)) +
-            " " + msg;
-    }
-
-    SPDLOG_INFO("EndOfAudio, sending message: {}", msg);
-    output += msg;
-  }
-  return output;
+  return {};
 }
 
+// --------------------------------------------------------------------------------------
+// Nnet3Data::Nnet3Data
+// --------------------------------------------------------------------------------------
 Nnet3Data::Nnet3Data(int argc, char* argv[])
     : feature_opts(), decodable_opts(), decoder_opts(), endpoint_opts() {
 
@@ -214,14 +307,14 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
   const std::string fst_rxfilename = po.GetArg(2);
   const std::string word_syms_filename = po.GetArg(3);
 
-  OnlineNnet2FeaturePipelineInfo feature_info(feature_opts);
+  feature_info_ptr = std::make_unique<OnlineNnet2FeaturePipelineInfo>(feature_opts);
+  SPDLOG_INFO("Constructed OnlineNnet2FeaturePipelineInfo");
 
-  frame_shift = feature_info.FrameShiftInSeconds();
+  frame_shift = feature_info_ptr->FrameShiftInSeconds();
   frame_subsampling = decodable_opts.frame_subsampling_factor;
 
-  SPDLOG_INFO("Loading AM...");
-
   {
+    SPDLOG_INFO("Loading acoustic model...");
     bool binary;
     Input ki(nnet3_rxfilename, &binary);
     trans_model.Read(ki.Stream(), binary);
@@ -229,22 +322,20 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
     SetBatchnormTestMode(true, &(am_nnet.GetNnet()));
     SetDropoutTestMode(true, &(am_nnet.GetNnet()));
     nnet3::CollapseModel(nnet3::CollapseModelConfig(), &(am_nnet.GetNnet()));
+    SPDLOG_INFO("Loaded acoustic model");
   }
 
-  // this object contains precomputed stuff that is used by all decodable
-  // objects.  It takes a pointer to am_nnet because if it has iVectors it has
-  // to modify the nnet to accept iVectors at intervals.
-  nnet3::DecodableNnetSimpleLoopedInfo decodable_info(decodable_opts, &am_nnet);
+  decodable_info_ptr =
+      std::make_unique<nnet3::DecodableNnetSimpleLoopedInfo>(decodable_opts, &am_nnet);
 
   SPDLOG_INFO("Loading FST...");
-
   decode_fst = fst::ReadFstKaldiGeneric(fst_rxfilename);
-
   if (!word_syms_filename.empty()) {
     if (!(word_syms = fst::SymbolTable::ReadText(word_syms_filename))) {
       SPDLOG_ERROR("Could not read symbol table from file {}", word_syms_filename);
     }
   }
+  SPDLOG_INFO("Loaded FST");
 
   samp_count = 0; // this is used for output refresh rate
   chunk_len = static_cast<size_t>(chunk_length_secs * samp_freq);
@@ -252,20 +343,25 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
   check_count = check_period;
   frame_offset = 0;
 
-  feature_pipeline_ptr = std::make_unique<OnlineNnet2FeaturePipeline>(feature_info);
-  decoder_ptr = std::make_unique<SingleUtteranceNnet3Decoder>(
-      decoder_opts, trans_model, decodable_info, *decode_fst, feature_pipeline_ptr.get());
-  /*
-  OnlineNnet2FeaturePipeline feature_pipeline(feature_info);
-  SingleUtteranceNnet3Decoder decoder(decoder_opts, trans_model, decodable_info, *decode_fst,
-                                      &feature_pipeline);
-  */
+  SPDLOG_INFO("Config options:");
+  SPDLOG_INFO("       samp_freq: {} Hz", samp_freq);
+  SPDLOG_INFO("    chunk_length: {} seconds", chunk_length_secs);
+  SPDLOG_INFO("    chunk_length: {} samples", chunk_len);
+  SPDLOG_INFO("     check_count: {} samples", check_period);
 
-  decoder_ptr->InitDecoding(frame_offset);
-  silence_weighting_ptr = std::make_unique<OnlineSilenceWeighting>(
-      trans_model, feature_info.silence_weighting_config, decodable_opts.frame_subsampling_factor);
+  feature_pipeline_ptr = std::make_unique<OnlineNnet2FeaturePipeline>(*feature_info_ptr);
+  SPDLOG_DEBUG("Constructed OnlineNnet2FeaturePipeline");
+
+  decoder_ptr = std::make_unique<SingleUtteranceNnet3Decoder>(
+      decoder_opts, trans_model, *decodable_info_ptr, *decode_fst, feature_pipeline_ptr.get());
+  SPDLOG_DEBUG("Constructed SingleUtteranceNnet3Decoder");
+
+  SPDLOG_INFO("Constructed Nnet3Data");
 }
 
+// --------------------------------------------------------------------------------------
+// LatticeTostring
+// --------------------------------------------------------------------------------------
 std::string LatticeToString(const Lattice& lat, const fst::SymbolTable& word_syms) {
   LatticeWeight weight;
   std::vector<int32> alignment;
@@ -284,20 +380,9 @@ std::string LatticeToString(const Lattice& lat, const fst::SymbolTable& word_sym
   return msg.str();
 }
 
-std::string GetTimeString(int32 t_beg, int32 t_end, BaseFloat time_unit) {
-  char buffer[100];
-  double t_beg2 = static_cast<BaseFloat>(t_beg) * time_unit;
-  double t_end2 = static_cast<BaseFloat>(t_end) * time_unit;
-  snprintf(buffer, 100, "%.2f %.2f", t_beg2, t_end2);
-  return std::string(buffer);
-}
-
-int32 GetLatticeTimeSpan(const Lattice& lat) {
-  std::vector<int32> times;
-  LatticeStateTimes(lat, &times);
-  return times.back();
-}
-
+// --------------------------------------------------------------------------------------
+// LatticeToString
+// --------------------------------------------------------------------------------------
 std::string LatticeToString(const CompactLattice& clat, const fst::SymbolTable& word_syms) {
   if (clat.NumStates() == 0) {
     KALDI_WARN << "Empty lattice.";
@@ -309,6 +394,26 @@ std::string LatticeToString(const CompactLattice& clat, const fst::SymbolTable& 
   Lattice best_path_lat;
   ConvertLattice(best_path_clat, &best_path_lat);
   return LatticeToString(best_path_lat, word_syms);
+}
+
+// --------------------------------------------------------------------------------------
+// GetTimeString
+// --------------------------------------------------------------------------------------
+std::string GetTimeString(int32 t_beg, int32 t_end, BaseFloat time_unit) {
+  char buffer[100];
+  double t_beg2 = static_cast<BaseFloat>(t_beg) * time_unit;
+  double t_end2 = static_cast<BaseFloat>(t_end) * time_unit;
+  snprintf(buffer, 100, "%.2f %.2f", t_beg2, t_end2);
+  return std::string(buffer);
+}
+
+// --------------------------------------------------------------------------------------
+// GetLatticeTimeSpan
+// --------------------------------------------------------------------------------------
+int32 GetLatticeTimeSpan(const Lattice& lat) {
+  std::vector<int32> times;
+  LatticeStateTimes(lat, &times);
+  return times.back();
 }
 
 } // namespace kaldi

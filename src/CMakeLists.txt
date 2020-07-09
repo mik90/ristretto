@@ -11,7 +11,7 @@ find_program(GRPC_CPP_PLUGIN_EXEC
     PATHS /usr/bin /usr/local/bin
 )
 if(NOT GRPC_CPP_PLUGIN_EXEC)
-    message(FATAL_ERROR "Could not find grpc_cpp_plugin binary!")
+    message(FATAL_ERROR "Could not find the grpc_cpp_plugin binary!")
 endif()
 
 # I tried to use add_custom_command but kept having issues, so this works

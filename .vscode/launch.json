@@ -5,13 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch decoder interface test",
+            "name": "Kaldi TCP server debug",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/DecoderTest",
-            "args": [],
+            "program": "/opt/kaldi/src/online2bin/online2-tcp-nnet3-decode-faster",
+            "args": ["--verbose=1", "--frames-per-chunk=20", "--extra-left-context-initial=0", "--frame-subsampling-factor=3",
+                  "--config=/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/online.conf",
+                  "--min-active=200", "--max-active=7000", "--beam=15.0", "--lattice-beam=6.0", "--acoustic-scale=1.0", "--port-num=5050",
+                  "/opt/kaldi/egs/aspire/s5/exp/chain/tdnn_7b/final.mdl", "/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/HCLG.fst", 
+                  "/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/words.txt"],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "/opt/kaldi",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -24,11 +28,15 @@
             ]
         },
         {
-            "name": "Debug capture",
+            "name": "RistrettoServer debug",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/AlsaInterface",
-            "args": ["capture", "test.raw"],
+            "program": "${workspaceFolder}/build/bin/RistrettoServer",
+            "args": ["--verbose=1", "--frames-per-chunk=20", "--extra-left-context-initial=0", "--frame-subsampling-factor=3",
+                  "--config=/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/online.conf",
+                  "--min-active=200", "--max-active=7000", "--beam=15.0", "--lattice-beam=6.0", "--acoustic-scale=1.0", "--port-num=5050",
+                  "/opt/kaldi/egs/aspire/s5/exp/chain/tdnn_7b/final.mdl", "/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/HCLG.fst", 
+                  "/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/words.txt"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -41,26 +49,6 @@
                     "ignoreFailures": true
                 }
             ]
-        },
-        {
-            "name": "Debug playback",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/bin/AlsaInterface",
-            "args": ["playback", "test.raw"],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "miDebuggerPath": "/usr/bin/gdb"
         }
     ]
 }

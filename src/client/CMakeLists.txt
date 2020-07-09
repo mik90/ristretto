@@ -12,17 +12,21 @@ target_link_libraries(protoObjects PRIVATE
     project_options
 )
 
-add_library(RistrettoClientCore
+add_library(RistrettoClientLib
   RistrettoClient.cpp
   Utils.cpp
 )
+set_target_properties(RistrettoClientLib
+  PROPERTIES OUTPUT_NAME "libRistrettoClient"
+)
 
-target_include_directories(RistrettoClientCore PUBLIC
-  "${CMAKE_BINARY_DIR}/src"
+target_include_directories(RistrettoClientLib PUBLIC
+  ${CMAKE_CURRENT_LIST_DIR}
+  ${CMAKE_BINARY_DIR}/src
   AlsaInterface
 )
 
-target_link_libraries(RistrettoClientCore PUBLIC
+target_link_libraries(RistrettoClientLib PUBLIC
     # Generated files trigger warnings, compiled them separately
     protoObjects
     # Project settings
@@ -44,5 +48,5 @@ add_executable(RistrettoClient
 )
 
 target_link_libraries(RistrettoClient
-  RistrettoClientCore
+  RistrettoClientLib
 )

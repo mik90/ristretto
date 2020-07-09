@@ -10,7 +10,7 @@ target_link_libraries(ClientTest PRIVATE
     project_options
     project_warnings
     AlsaInterface
-    RistrettoClientCore
+    RistrettoClientLib
     CONAN_PKG::gtest
 )
 

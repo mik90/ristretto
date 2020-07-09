@@ -32,6 +32,7 @@
 #include "online2/onlinebin-util.h"
 #include "util/kaldi-thread.h"
 
+#include <cstring>
 #include <spdlog/spdlog.h>
 #include <string>
 
@@ -59,24 +60,18 @@ Vector<BaseFloat> deserializeAudioData(std::unique_ptr<std::string> audioDataPtr
   const size_t input_length = audioDataPtr->length();
   const size_t output_length = input_length / 2;
 
-  // The output vector should have half the elements of the input std::string
-  // Every 2 input chars in the string will be combined together to make one output element
-  Vector<BaseFloat> audio_data_float(static_cast<MatrixIndexT>(output_length), kUndefined);
+  std::vector<int16_t> buffer_int16(output_length);
+  if (!std::memmove(buffer_int16.data(), audioDataPtr->data(), audioDataPtr->length())) {
+    SPDLOG_ERROR("Could not memmove audio data into int16 buffer!");
+    return {};
+  }
 
-  // Expect that two chars will be the same size of an int16_t
-  // Since this function relies upon combining two chars into an int16
-  static_assert((2 * sizeof(char)) == sizeof(int16_t));
+  // These vectors have the same number of elements
+  Vector<BaseFloat> audio_data_float(static_cast<MatrixIndexT>(buffer_int16.size()), kUndefined);
 
-  size_t input_idx = 0;
-  MatrixIndexT output_idx = 0;
-  while (input_idx < input_length) {
-    // Combine 2 chars into a 16 bit value
-    const auto lower = static_cast<uint32_t>((*audioDataPtr)[input_idx++]);
-    const auto upper = static_cast<uint32_t>((*audioDataPtr)[input_idx++]);
-    constexpr uint8_t bits_to_shift_by = 8;
-    const auto combined_int16 = static_cast<int16_t>((upper << bits_to_shift_by) | lower);
-    // Convert the int16 to a BaseFloat
-    audio_data_float(output_idx++) = static_cast<BaseFloat>(combined_int16);
+  for (int i = 0; i < audio_data_float.Dim(); ++i) {
+    // Convert each int16 into a BaseFloat
+    audio_data_float(i) = static_cast<BaseFloat>(buffer_int16[static_cast<size_t>(i)]);
   }
 
   return audio_data_float;
@@ -89,8 +84,8 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
 
   SPDLOG_DEBUG("decodeAudioChunk entry");
   const Vector<BaseFloat> complete_audio_data = deserializeAudioData(std::move(audioDataPtr));
-  SPDLOG_DEBUG("complete_audio_data size in bytes:{}", complete_audio_data.SizeInBytes());
-  SPDLOG_DEBUG("complete_audio_data Dim (elements):{}", complete_audio_data.Dim());
+  SPDLOG_DEBUG("complete_audio_data size in bytes:{}, number of elements:{}",
+               complete_audio_data.SizeInBytes(), complete_audio_data.Dim());
 
   SPDLOG_DEBUG("Getting lock on mutex...");
   // No idea how thread-safe Kaldi is so naively lock at the beginning of this method
@@ -118,9 +113,7 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
   }
   try {
     std::string output;
-    size_t iteration_count = 0;
     while (true) {
-      SPDLOG_DEBUG("iteration_count {} ", iteration_count);
 
       // Get a usable chunk out of the audio data, this range will keep moving over the entire audio
       // data range
@@ -145,11 +138,6 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
       Vector<BaseFloat> audio_chunk(sub_vec);
       SPDLOG_DEBUG("created audio_chunk copy of SubVector dim: {}, size in bytes:{}",
                    audio_chunk.Dim(), audio_chunk.SizeInBytes());
-
-      SPDLOG_DEBUG("GetChunk as BaseFloat (first 20 values)");
-      for (int i = 0; i < 20; ++i) {
-        SPDLOG_DEBUG("audio_chunk({}):{}", i, audio_chunk(i));
-      }
 
       feature_pipeline_ptr->AcceptWaveform(samp_freq, audio_chunk);
       samp_count += static_cast<int32>(chunk_len);
@@ -215,7 +203,6 @@ std::string Nnet3Data::decodeAudio(std::unique_ptr<std::string> audioDataPtr) {
         output += msg;
         break;
       }
-      SPDLOG_DEBUG("end of iteration {} ", iteration_count++);
     } // end of while(true) loop
 
     SPDLOG_INFO("Input finished");

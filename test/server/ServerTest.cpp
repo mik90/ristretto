@@ -101,3 +101,22 @@ TEST(DeserializeTest, ConvertValidValues_UnevenAmount) {
 
   ASSERT_TRUE(output.ApproxEqual(expected_output));
 }
+
+// @test Convert -54 lower and 0 upper to 202
+TEST(DeserializeTest, ConvertValidValuesSigned) {
+  // These are int values
+  const std::string input = {int8_t(-54), 0};
+  const auto input_length = input.length();
+
+  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+
+  const auto expected_output =
+      TestUtils::initializerListToKaldiVector(std::initializer_list<kaldi::BaseFloat>{202});
+
+  // Output length should be half of input length
+  ASSERT_EQ(input_length / 2, static_cast<size_t>(expected_output.Dim()));
+
+  for (auto i = 0; i < expected_output.Dim(); ++i) {
+    ASSERT_EQ(expected_output(i), output(i));
+  }
+}

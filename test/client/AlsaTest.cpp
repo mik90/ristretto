@@ -14,44 +14,52 @@ TEST(UtilTest, ReadInAudioFile) {
   ASSERT_EQ(audioBuffer.size(), 160000);
 }
 
-TEST(AlsaTest, USER_INPUT_CaptureAudioInBuffer) {
+TEST(AlsaTest, CaptureAudio_Stream) {
 
+  std::filesystem::path outputPath = "test/resources/unittestCapture.raw";
   mik::AlsaConfig config;
   mik::AlsaInterface alsa(config);
 
-  const auto audio = alsa.captureAudioUntilUserExit();
-
-  ASSERT_GT(audio.size(), 0);
-}
-
-TEST(AlsaTest, USER_INPUT_CaptureAudioToFile) {
-
-  const std::string outputAudio = "test/resources/unittestCapture.raw";
-  mik::AlsaConfig config;
-  mik::AlsaInterface alsa(config);
-
-  std::fstream outputStream(outputAudio, outputStream.trunc | outputStream.out);
+  std::fstream outputStream(outputPath.generic_string(), outputStream.trunc | outputStream.out);
   ASSERT_TRUE(outputStream.is_open());
 
-  constexpr unsigned int secondsToRecord = 5;
-  alsa.captureAudioFixedSize(outputStream, secondsToRecord);
+  constexpr unsigned int millisecondsToRecord = 10;
+  alsa.captureAudioFixedSizeMs(outputStream, millisecondsToRecord);
+  outputStream.flush();
+
+  EXPECT_GT(std::filesystem::file_size(outputPath), 0);
 
   // Clean up
-  std::filesystem::path testOutput{outputAudio};
-  std::filesystem::remove(testOutput);
+  std::filesystem::remove(outputPath);
 }
 
-TEST(AlsaTest, USER_INPUT_PlaybackAudioFromFile) {
+TEST(AlsaTest, CaptureAudio_Vector) {
+
+  mik::AlsaConfig config;
+  mik::AlsaInterface alsa(config);
+
+  constexpr unsigned int msToRecord = 100;
+  const auto audioData = alsa.captureAudioFixedSizeMs(msToRecord);
+
+  ASSERT_GT(audioData.size(), 0);
+}
+
+TEST(AlsaTest, PlaybackAudioFromFile) {
 
   const std::string inputAudio = "test/resources/unittestPlayback.raw";
   mik::AlsaConfig config;
   mik::AlsaInterface alsa(config);
 
   std::fstream inputStream(inputAudio, inputStream.in);
+  constexpr unsigned int secondsToRecord = 1;
+
+  const auto start = inputStream.gcount();
   ASSERT_TRUE(inputStream.is_open());
 
-  constexpr unsigned int secondsToRecord = 5;
   alsa.playbackAudioFixedSize(inputStream, secondsToRecord);
+
+  const auto end = inputStream.gcount();
+  ASSERT_LT(start, end) << "inputStream.gcount() should have risen";
 }
 
 class MockAlsaInterface : public mik::AlsaInterface {
@@ -73,16 +81,14 @@ TEST(AlsaTest, consumeAllAudio) {
 
 TEST(AlsaTest, consumeDurationOfAudio_10ms) {
   // Create large vector of default-initialized data
-  const std::vector<char> internalAudioData(425000);
+  const std::vector<char> internalAudioData(2048);
   mik::AlsaConfig config;
   MockAlsaInterface alsa(config);
   alsa.setAudioData(internalAudioData);
 
-  // 10 milliseconds should be 59,904 bytes
-  // This is found with the same calculation that i used to make it, so not the best test
-  // Either i got it wrong the first time or maybe it should be 320,000 bytes
+  // 10 is 2 periods (each 128 bytes) totalling 256 bytes
   const auto audioData = alsa.consumeDurationOfAudioData(10);
-  ASSERT_EQ(59904, audioData.size());
+  ASSERT_EQ(256, audioData.size());
 }
 
 TEST(AlsaTest, consumeDurationOfAudio_LargeRequest) {

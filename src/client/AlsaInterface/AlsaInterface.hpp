@@ -79,7 +79,8 @@ public:
   AlsaInterface(const AlsaConfig& alsaConfig);
   virtual ~AlsaInterface();
 
-  void captureAudioFixedSize(std::ostream& outputStream, unsigned int seconds);
+  void captureAudioFixedSizeMs(std::ostream& outputStream, unsigned int milliseconds);
+  std::vector<char> captureAudioFixedSizeMs(unsigned int milliseconds);
   std::vector<char> captureAudioUntilUserExit();
   void playbackAudioFixedSize(std::istream& inputStream, unsigned int seconds);
   Status updateConfiguration(const AlsaConfig& alsaConfig);

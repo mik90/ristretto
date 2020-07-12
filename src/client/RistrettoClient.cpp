@@ -7,23 +7,32 @@
 #include <grpc/support/log.h>
 #include <spdlog/spdlog.h>
 
+#include "AlsaInterface.hpp"
 #include "RistrettoClient.hpp"
 #include "Utils.hpp"
 
 namespace mik {
 
 RistrettoClient::RistrettoClient(std::shared_ptr<grpc::Channel> channel)
-    : stub_(ristretto::Decoder::NewStub(channel)) {
+    : stub_(RistrettoProto::Decoder::NewStub(channel)) {
   SPDLOG_INFO("Constructed RistrettoClient");
 }
 
+void RistrettoClient::processAudioInput() {
+  SPDLOG_DEBUG("Starting audio processing loop");
+  while (true) {
+#if 0
+    std::ostream captureBuffer;
+    const auto captureChunkSec = 1;
+#endif
+  }
+  return;
+}
 std::string RistrettoClient::decodeAudio(const std::vector<char>& audio) {
 
-  SPDLOG_DEBUG("decodeAudio start");
-  ristretto::AudioData audioData;
-  SPDLOG_DEBUG("audio vector size: {}", audio.size());
+  RistrettoProto::AudioData audioData;
   audioData.set_audio(audio.data(), audio.size());
-  SPDLOG_DEBUG("audioData bytes: {}", audioData.ByteSizeLong());
+  SPDLOG_INFO("Sending {} bytes of audio", audioData.ByteSizeLong());
   if (audioData.ByteSizeLong() == 0) {
     SPDLOG_ERROR("audioData is empty, abandoning RPC");
     return {};
@@ -33,10 +42,10 @@ std::string RistrettoClient::decodeAudio(const std::vector<char>& audio) {
   grpc::CompletionQueue cq;
   grpc::Status status;
 
-  std::unique_ptr<grpc::ClientAsyncResponseReader<ristretto::Transcript>> rpc(
+  std::unique_ptr<grpc::ClientAsyncResponseReader<RistrettoProto::Transcript>> rpc(
       stub_->AsyncDecodeAudio(&context, audioData, &cq));
 
-  ristretto::Transcript transcipt;
+  RistrettoProto::Transcript transcipt;
   rpc->Finish(&transcipt, &status, reinterpret_cast<void*>(1));
   void* got_tag;
   bool ok = false;
@@ -44,7 +53,6 @@ std::string RistrettoClient::decodeAudio(const std::vector<char>& audio) {
   GPR_ASSERT(got_tag == reinterpret_cast<void*>(1));
   GPR_ASSERT(ok);
 
-  SPDLOG_DEBUG("decodeAudio end");
   if (status.ok()) {
     return transcipt.text();
   } else {

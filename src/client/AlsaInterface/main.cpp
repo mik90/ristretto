@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
       SPDLOG_ERROR("Could not open {} for creating/writing", outputFilename.asString());
       std::exit(1);
     }
-    alsa.captureAudioFixedSize(outputStream, 15);
+    alsa.captureAudioFixedSizeMs(outputStream, 15000);
   } else if (playback && inputAudioFile) {
     std::fstream inputStream(inputAudioFile.asString(), inputStream.in);
     if (!inputStream.is_open()) {

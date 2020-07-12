@@ -65,7 +65,7 @@ unsigned int Utils::secondsToMicroseconds(unsigned int seconds) {
 
 unsigned int Utils::millisecondsToMicroseconds(unsigned int milliseconds) {
   return static_cast<unsigned int>(
-      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds(milliseconds))
+      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(milliseconds))
           .count());
 }
 

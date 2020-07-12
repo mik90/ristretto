@@ -116,8 +116,8 @@ std::vector<char> AlsaInterface::consumeDurationOfAudioData(unsigned int millise
 
   const auto periodCount = duration_us / config_.periodDuration_us;
   const auto bytesToGet = periodCount * config_.periodSizeBytes;
-  SPDLOG_DEBUG("Given {} ms, get {} periods totalling {} bytes", milliseconds, periodCount,
-               bytesToGet);
+  SPDLOG_DEBUG("Given {} ms, get {} periods (each {} bytes) totalling {} bytes", milliseconds,
+               periodCount, config_.periodSizeBytes, bytesToGet);
 
   if (bytesToGet > audioData_.size()) {
     SPDLOG_WARN(

@@ -23,9 +23,10 @@ class RistrettoClient {
 public:
   explicit RistrettoClient(std::shared_ptr<grpc::Channel> channel);
   std::string decodeAudio(const std::vector<char>& audio);
+  void processAudioInput();
 
 private:
-  std::unique_ptr<ristretto::Decoder::Stub> stub_;
+  std::unique_ptr<RistrettoProto::Decoder::Stub> stub_;
 };
 
 } // namespace mik

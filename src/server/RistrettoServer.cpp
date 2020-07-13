@@ -69,6 +69,7 @@ void CallData::proceed(std::function<std::string(std::unique_ptr<std::string>)> 
     SPDLOG_DEBUG("Starting decoding...");
     const auto text = decoderFunc(std::move(audioDataPtr));
     transcript_.set_text(text);
+    transcript_.set_audioid(audioData_.audioid());
 
     status_ = FINISH;
     SPDLOG_DEBUG("Responding with transcript: {}", text);

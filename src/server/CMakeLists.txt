@@ -17,7 +17,7 @@ add_library(RistrettoServerLib
 )
 
 set_target_properties(RistrettoServerLib
-    PROPERTIES OUTPUT_NAME libRistrettoServer
+    PROPERTIES OUTPUT_NAME "RistrettoServer"
 )
 
 # Turn spdlog onto the DEBUG level

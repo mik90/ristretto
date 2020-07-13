@@ -7,6 +7,12 @@ service Decoder {
   rpc DecodeAudio(AudioData) returns (Transcript) {}
 }
 
-message AudioData { bytes audio = 1; }
+message AudioData {
+   bytes audio = 1;
+   uint32 audioId = 2;
+}
 
-message Transcript { string text = 1; }
+message Transcript {
+   string text = 1;
+   uint32 audioId = 2;
+}

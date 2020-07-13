@@ -17,7 +17,7 @@ add_library(RistrettoClientLib
   Utils.cpp
 )
 set_target_properties(RistrettoClientLib
-  PROPERTIES OUTPUT_NAME "libRistrettoClient"
+  PROPERTIES OUTPUT_NAME "RistrettoClient"
 )
 
 target_include_directories(RistrettoClientLib PUBLIC

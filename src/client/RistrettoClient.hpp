@@ -31,7 +31,7 @@ public:
   };
 
 private:
-  void produceAudioChunks(unsigned int captureDurationMilliseconds);
+  void recordAudioChunks(unsigned int captureDurationMilliseconds);
   void renderResults();
   void waitForTimeout();
 
@@ -48,6 +48,9 @@ private:
   std::atomic<bool> continueRecording_ = false;
   /// @brief Do not limit the recording duration if the timeout is 0
   std::chrono::milliseconds recordingTimeout_ = std::chrono::milliseconds(0);
+
+  AlsaConfig config_;
+  AlsaInterface alsa_;
 };
 
 struct ClientCallData {

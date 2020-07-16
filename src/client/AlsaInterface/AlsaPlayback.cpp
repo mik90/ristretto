@@ -8,6 +8,9 @@
 namespace mik {
 
 void AlsaInterface::playbackAudioFixedSize(std::istream& inputStream, unsigned int seconds) {
+  this->playbackAudioFixedSizeMs(inputStream, seconds * 1000);
+}
+void AlsaInterface::playbackAudioFixedSizeMs(std::istream& inputStream, unsigned int milliseconds) {
   SPDLOG_INFO("Starting playback...");
 
   if (!this->isConfiguredForPlayback()) {
@@ -18,7 +21,7 @@ void AlsaInterface::playbackAudioFixedSize(std::istream& inputStream, unsigned i
   }
 
   SPDLOG_INFO("Calculating amount of recording loops...");
-  int loopsLeft = config_.calculateRecordingLoops(Utils::secondsToMicroseconds(seconds));
+  int loopsLeft = config_.calculateRecordingLoops(Utils::millisecondsToMicroseconds(milliseconds));
   SPDLOG_INFO("Will be running {} loops", loopsLeft);
   SPDLOG_INFO("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
 

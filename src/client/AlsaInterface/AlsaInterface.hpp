@@ -79,10 +79,13 @@ public:
   AlsaInterface(const AlsaConfig& alsaConfig);
   virtual ~AlsaInterface();
 
+  // TODO There's way too much duplication, should the audio data be kept in here or in
+  // RistrettoClient?
   void captureAudioFixedSizeMs(std::ostream& outputStream, unsigned int milliseconds);
-  std::vector<char> captureAudioFixedSizeMs(unsigned int milliseconds);
+  std::vector<char> recordForDuration(unsigned int milliseconds);
   std::vector<char> captureAudioUntilUserExit();
   void playbackAudioFixedSize(std::istream& inputStream, unsigned int seconds);
+  void playbackAudioFixedSizeMs(std::istream& inputStream, unsigned int milliseconds);
   Status updateConfiguration(const AlsaConfig& alsaConfig);
 
   Status configureInterface();

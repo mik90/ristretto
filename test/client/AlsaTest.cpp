@@ -39,7 +39,7 @@ TEST(AlsaTest, CaptureAudio_Vector) {
   mik::AlsaInterface alsa(config);
 
   constexpr unsigned int msToRecord = 100;
-  const auto audioData = alsa.captureAudioFixedSizeMs(msToRecord);
+  const auto audioData = alsa.recordForDuration(msToRecord);
 
   ASSERT_GT(audioData.size(), 0);
 }

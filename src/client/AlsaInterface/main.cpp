@@ -12,8 +12,7 @@ static constexpr auto Usage =
     R"(AlsaInterface.
 
     Usage:
-          AlsaInterface capture --file <output_filename>
-          AlsaInterface playback --file <input_audio_file>
+          AlsaInterface (capture | playback) --file <filename>
           AlsaInterface (-h | --help)
           AlsaInterface (-v | --version)
 
@@ -36,8 +35,7 @@ int main(int argc, char** argv) {
   const auto capture = args[std::string("capture")];
   const auto playback = args[std::string("playback")];
 
-  const auto outputFilename = args[std::string("<output_filename>")];
-  const auto inputAudioFile = args[std::string("<input_audio_file>")];
+  const auto filename = args[std::string("<filename>")];
 
   mik::Utils::createLogger();
   // Use the default config
@@ -45,21 +43,21 @@ int main(int argc, char** argv) {
   config.samplingFreq_Hz = 8000;
   mik::AlsaInterface alsa(config);
 
-  if (capture && outputFilename) {
-    std::fstream outputStream(outputFilename.asString(), outputStream.trunc | outputStream.out);
+  if (capture && filename) {
+    std::fstream outputStream(filename.asString(), outputStream.trunc | outputStream.out);
 
     if (!outputStream.is_open()) {
-      SPDLOG_ERROR("Could not open {} for creating/writing", outputFilename.asString());
+      SPDLOG_ERROR("Could not open {} for creating/writing", filename.asString());
       std::exit(1);
     }
-    alsa.captureAudioFixedSizeMs(outputStream, 15000);
-  } else if (playback && inputAudioFile) {
-    std::fstream inputStream(inputAudioFile.asString(), inputStream.in);
+    alsa.captureAudioFixedSizeMs(outputStream, 5000);
+  } else if (playback && filename) {
+    std::fstream inputStream(filename.asString(), inputStream.in);
     if (!inputStream.is_open()) {
-      SPDLOG_ERROR("Could not open {} for reading", inputAudioFile.asString());
+      SPDLOG_ERROR("Could not open {} for reading", filename.asString());
       std::exit(1);
     }
-    alsa.playbackAudioFixedSize(inputStream, 15);
+    alsa.playbackAudioFixedSizeMs(inputStream, 5000);
   }
 
   return 0;

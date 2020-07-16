@@ -18,20 +18,23 @@ namespace mik {
  * RistrettoClient::RistrettoClient
  */
 RistrettoClient::RistrettoClient(std::shared_ptr<grpc::Channel> channel)
-    : stub_(RistrettoProto::Decoder::NewStub(channel)) {
+    : stub_(RistrettoProto::Decoder::NewStub(channel)), config_(), alsa_(config_) {
   SPDLOG_INFO("Constructed RistrettoClient");
 }
 
 /**
- * RistrettoClient::produceAudioChunks
+ * RistrettoClient::recordAudioChunks
  */
-void RistrettoClient::produceAudioChunks(unsigned int captureDurationMilliseconds) {
+void RistrettoClient::recordAudioChunks(unsigned int captureDurationMilliseconds) {
 
-  AlsaConfig config;
-  AlsaInterface alsa(config);
   unsigned int audioId = 0;
   while (continueRecording_) {
-    const auto audioData = alsa.captureAudioFixedSizeMs(captureDurationMilliseconds);
+    const auto audioData = alsa_.recordForDuration(captureDurationMilliseconds);
+    if (audioData.empty()) {
+      SPDLOG_ERROR("Could not capture audio!");
+      continueRecording_.store(false);
+      return;
+    }
     RistrettoProto::AudioData audioDataProto;
     SPDLOG_DEBUG("Captured audio chunk with audioId:{}", audioId);
     audioDataProto.set_audio(audioData.data(), audioData.size());
@@ -46,6 +49,7 @@ void RistrettoClient::produceAudioChunks(unsigned int captureDurationMillisecond
     std::lock_guard<std::mutex> lock(audioInputMutex_);
     audioInputQ_.emplace(std::move(audioDataProto));
   }
+  alsa_.stopRecording();
 }
 
 /**
@@ -53,9 +57,9 @@ void RistrettoClient::produceAudioChunks(unsigned int captureDurationMillisecond
  * @brief Waits for a given duration and then disables recording
  */
 void RistrettoClient::waitForTimeout() {
-  SPDLOG_INFO("Ending recording after {} milliseconds", recordingTimeout_.count());
+  SPDLOG_INFO("Recording will end after {} milliseconds", recordingTimeout_.count());
   std::this_thread::sleep_for(recordingTimeout_);
-  SPDLOG_INFO("Ending recording.");
+  SPDLOG_INFO("Timeout hit, ending recording...");
   continueRecording_.store(false);
 }
 
@@ -70,7 +74,7 @@ void RistrettoClient::renderResults() {
   bool ok = false;
   fmt::print("Results will be displayed below.\n");
 
-  while (resultCompletionQ_.Next(&recieved_tag, &ok)) {
+  while (continueRecording_ && resultCompletionQ_.Next(&recieved_tag, &ok)) {
     // The tag identifies the ClientCallData* on the completion queue, so dereference it
     std::unique_ptr<ClientCallData> call(static_cast<ClientCallData*>(recieved_tag));
 
@@ -87,6 +91,7 @@ void RistrettoClient::renderResults() {
       continue;
     }
   }
+  SPDLOG_INFO("renderResults exiting...");
 }
 
 /**
@@ -96,7 +101,7 @@ void RistrettoClient::renderResults() {
  */
 void RistrettoClient::processMicrophoneInput() {
 
-  SPDLOG_INFO("Starting audio processing loop");
+  SPDLOG_DEBUG("Starting audio processing loop");
   continueRecording_.store(true);
 
   // Print the results on-screen on another thread
@@ -105,7 +110,7 @@ void RistrettoClient::processMicrophoneInput() {
 
   constexpr unsigned int captureChunkMs = 1000;
   // Record audio in another thread
-  auto recordingThread = std::thread(&RistrettoClient::produceAudioChunks, this, captureChunkMs);
+  auto recordingThread = std::thread(&RistrettoClient::recordAudioChunks, this, captureChunkMs);
   SPDLOG_INFO("Started recording thread");
 
   // If configured, Stop the recording after a while
@@ -138,16 +143,21 @@ void RistrettoClient::processMicrophoneInput() {
     call->responseReader->StartCall();
     call->responseReader->Finish(&call->transcript, &call->status, reinterpret_cast<void*>(call));
 
-    SPDLOG_INFO("Sent {} bytes of audio, audioId:{}", audioData.ByteSizeLong(),
-                audioData.audioid());
+    SPDLOG_DEBUG("Sent {} bytes of audio, audioId:{}", audioData.ByteSizeLong(),
+                 audioData.audioid());
   }
+  SPDLOG_INFO("Recording ended.");
 
-  SPDLOG_INFO("Exiting..");
-  recordingThread.join();
-  renderingThread.join();
+  if (recordingThread.joinable()) {
+    recordingThread.join();
+  }
+  if (renderingThread.joinable()) {
+    renderingThread.join();
+  }
   if (timeoutThread.joinable()) {
     timeoutThread.join();
   }
+  SPDLOG_DEBUG("Exiting...");
   return;
 }
 

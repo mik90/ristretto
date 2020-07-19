@@ -1,5 +1,4 @@
-#ifndef MIK_KALDI_CLIENT_HPP_
-#define MIK_KALDI_CLIENT_HPP_
+#pragma once
 
 #include <alsa/asoundlib.h>
 
@@ -20,9 +19,6 @@ constexpr std::string_view defaultHw("default");
 constexpr std::string_view intelPch("hw:PCH");
 constexpr std::string_view speechMike("hw:III");
 
-// Was unsure if this needed to be signed or unsigned, just making it easy to switch
-using uint8_t = uint8_t;
-
 enum class Status { SUCCESS, ERROR };
 
 enum class StreamConfig : unsigned int {
@@ -42,6 +38,9 @@ struct SndPcmDeleter {
   }
 };
 
+/**
+ * @brief Configuration for Alsa
+ */
 struct AlsaConfig {
   // 44,100 Hz is CD-quality and too high for ASR
   // 16,000 Hz would be best, although the fisher-english corpus is recorded with 8,000 Hz
@@ -74,13 +73,17 @@ struct AlsaConfig {
   inline bool operator!=(const AlsaConfig& rhs) const noexcept { return !(*this == rhs); }
 };
 
+/**
+ * @brief API for audio capture and playback
+ */
 class AlsaInterface {
 public:
-  AlsaInterface(const AlsaConfig& alsaConfig);
+  AlsaInterface(const AlsaConfig& alsaConfig = AlsaConfig());
   virtual ~AlsaInterface();
 
   // TODO There's way too much duplication, should the audio data be kept in here or in
   // RistrettoClient?
+  // TODO Be consistent with chrono vs int usage
   void captureAudioFixedSizeMs(std::ostream& outputStream, unsigned int milliseconds);
   std::vector<char> recordForDuration(unsigned int milliseconds);
   std::vector<char> captureAudioUntilUserExit();
@@ -89,7 +92,7 @@ public:
   Status updateConfiguration(const AlsaConfig& alsaConfig);
 
   Status configureInterface();
-  const AlsaConfig& getConfiguration() { return config_; }
+  const AlsaConfig& getConfiguration() const noexcept { return config_; }
   inline bool isConfiguredForPlayback() const noexcept {
     return config_.streamConfig == StreamConfig::PLAYBACK;
   }
@@ -101,8 +104,12 @@ public:
   }
   void stopRecording();
   void startRecording();
+  size_t audioDataAvailableBytes() const noexcept;
+  std::chrono::milliseconds audioDataAvailableMilliseconds() const noexcept;
   std::vector<char> consumeAllAudioData();
-  std::vector<char> consumeDurationOfAudioData(unsigned int milliseconds);
+  std::vector<char> consumeDurationOfAudioData(std::chrono::milliseconds duration);
+  size_t audioDurationToBytes(std::chrono::milliseconds duration) const noexcept;
+  std::chrono::milliseconds bytesToAudioDuration(size_t size) const noexcept;
 
 protected:
   snd_pcm_t* openSoundDevice(std::string_view pcmDesc, StreamConfig streamConfig);
@@ -119,4 +126,3 @@ protected:
 };
 
 } // namespace mik
-#endif

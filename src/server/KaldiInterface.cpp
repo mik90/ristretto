@@ -337,10 +337,8 @@ Nnet3Data::Nnet3Data(int argc, char* argv[])
   frameOffset = 0;
 
   SPDLOG_INFO("Config options:");
-  SPDLOG_INFO("       sampFreq: {} Hz", sampFreq);
-  SPDLOG_INFO("    chunk_length: {} seconds", chunkLengthSecs);
-  SPDLOG_INFO("    chunk_length: {} samples", chunkLen);
-  SPDLOG_INFO("     checkCount: {} samples", checkPeriod);
+  SPDLOG_INFO("  sample frequency: {} Hz", sampFreq);
+  SPDLOG_INFO("  chunk length: {} seconds, {} samples", chunkLengthSecs, chunkLen);
 
   featurePipelinePtr = std::make_unique<OnlineNnet2FeaturePipeline>(*featureInfoPtr);
   SPDLOG_DEBUG("Constructed OnlineNnet2FeaturePipeline");

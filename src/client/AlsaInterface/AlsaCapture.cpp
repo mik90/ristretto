@@ -11,9 +11,9 @@
 
 namespace mik {
 
-// --------------------------------------------------------------------------------------
-// AlsaInterface::startRecording
-// --------------------------------------------------------------------------------------
+/**
+ * AlsaInterface::startRecording
+ */
 void AlsaInterface::startRecording() {
   // Create the thread objec which will start off the recording
   shouldRecord_ = true;
@@ -21,9 +21,9 @@ void AlsaInterface::startRecording() {
   SPDLOG_INFO("Recording started.");
 }
 
-// --------------------------------------------------------------------------------------
-// AlsaInterface::stopRecording
-// --------------------------------------------------------------------------------------
+/**
+ * AlsaInterface::stopRecording
+ */
 void AlsaInterface::stopRecording() {
   shouldRecord_ = false;
   if (recordingThread_.joinable()) {
@@ -35,19 +35,19 @@ void AlsaInterface::stopRecording() {
   SPDLOG_INFO("Recording stopped.");
 }
 
-// --------------------------------------------------------------------------------------
-// AlsaInterface::record
-// --------------------------------------------------------------------------------------
+/**
+ * AlsaInterface::record
+ */
 void AlsaInterface::record() {
   SPDLOG_DEBUG("record(): start");
 
-  // Allocate a chunk of data for the buffer and wrap it in a unique_ptr
-  auto cBuffer = std::make_unique<uint8_t[]>(config_.periodSizeBytes);
+  std::vector<char> audioBuffer(config_.periodSizeBytes);
+  audioBuffer.resize(config_.periodSizeBytes);
 
   while (shouldRecord_) {
 
     // Read data from the sound card into audioChunk
-    const auto status = snd_pcm_readi(pcmHandle_.get(), cBuffer.get(), config_.frames);
+    const auto status = snd_pcm_readi(pcmHandle_.get(), audioBuffer.data(), config_.frames);
     if (status == -EPIPE) {
       // Overran the buffer
       SPDLOG_WARN("record(): Overran buffer, received EPIPE. Will continue");
@@ -57,7 +57,7 @@ void AlsaInterface::record() {
       SPDLOG_ERROR("record(): Error reading from pcm. errno:{}",
                    std::strerror(static_cast<int>(status)));
       return;
-    } else if (status != static_cast<int>(config_.frames)) {
+    } else if (status != static_cast<snd_pcm_sframes_t>(config_.frames)) {
       SPDLOG_WARN("record(): Should've read {} frames, only read {}.", config_.frames, status);
       snd_pcm_prepare(pcmHandle_.get());
       continue;
@@ -66,19 +66,16 @@ void AlsaInterface::record() {
     {
       // Access the container that holds all the auido data, add this chunk of audio to it
       std::lock_guard<std::mutex> lock(audioChunkMutex_);
-
-      // Pointer arithmetic, messy but i want to move the data from the C-style array into audioData
-      std::move(cBuffer.get(), cBuffer.get() + config_.periodSizeBytes,
-                std::back_inserter(audioData_));
+      audioData_.insert(std::end(audioData_), std::cbegin(audioBuffer), std::cend(audioBuffer));
     }
   }
 
   SPDLOG_DEBUG("record(): end");
 }
 
-// --------------------------------------------------------------------------------------
-// AlsaInterface::captureAudioUntilUserExit
-// --------------------------------------------------------------------------------------
+/**
+ * AlsaInterface::captureAudioUntilUserExit
+ */
 std::vector<char> AlsaInterface::captureAudioUntilUserExit() {
   SPDLOG_INFO("Starting capture until user exits...");
 
@@ -112,9 +109,9 @@ std::vector<char> AlsaInterface::captureAudioUntilUserExit() {
   return audioData_;
 }
 
-// --------------------------------------------------------------------------------------
-// AlsaInterface::recordForDuration
-// --------------------------------------------------------------------------------------
+/**
+ * AlsaInterface::recordForDuration
+ */
 std::vector<char> AlsaInterface::recordForDuration(unsigned int duration) {
 
   const auto recordingDuration_us = Utils::millisecondsToMicroseconds(duration);
@@ -166,9 +163,9 @@ std::vector<char> AlsaInterface::recordForDuration(unsigned int duration) {
   return outputBuffer;
 }
 
-// --------------------------------------------------------------------------------------
-// AlsaInterface::captureAudioFixedSizeMs
-// --------------------------------------------------------------------------------------
+/**
+ * AlsaInterface::captureAudioFixedSizeMs
+ */
 void AlsaInterface::captureAudioFixedSizeMs(std::ostream& outputStream, unsigned int milliseconds) {
   SPDLOG_INFO("Starting capture...");
 

@@ -17,50 +17,42 @@ namespace mik {
 /**
  * RistrettoClient::RistrettoClient
  */
-RistrettoClient::RistrettoClient(std::shared_ptr<grpc::Channel> channel)
-    : stub_(RistrettoProto::Decoder::NewStub(channel)), config_(), alsa_(config_) {
+RistrettoClient::RistrettoClient(std::shared_ptr<grpc::Channel> channel, const AlsaConfig& config)
+    : stub_(RistrettoProto::Decoder::NewStub(channel)), config_(config), alsa_(config_) {
   SPDLOG_INFO("Constructed RistrettoClient");
 }
 
 /**
  * RistrettoClient::recordAudioChunks
+ * @brief Starts recording and saves the audio in the input queue as protobuf objects
  */
-void RistrettoClient::recordAudioChunks(unsigned int captureDurationMilliseconds) {
+void RistrettoClient::recordAudioChunks() {
 
   unsigned int audioId = 0;
+  alsa_.startRecording();
   while (continueRecording_) {
-    const auto audioData = alsa_.recordForDuration(captureDurationMilliseconds);
+    if (alsa_.audioDataAvailableMilliseconds() < chunkDuration_) {
+      // It'd be smarter to use condition variables or something else but this'll work for now
+      std::this_thread::sleep_for(chunkDuration_);
+    }
+
+    const auto audioData = alsa_.consumeAllAudioData();
     if (audioData.empty()) {
-      SPDLOG_ERROR("Could not capture audio!");
-      continueRecording_.store(false);
+      SPDLOG_ERROR("No audio data was available for consumption!");
       return;
     }
+
     RistrettoProto::AudioData audioDataProto;
-    SPDLOG_DEBUG("Captured audio chunk with audioId:{}", audioId);
     audioDataProto.set_audio(audioData.data(), audioData.size());
     audioDataProto.set_audioid(audioId++);
 
-    if (audioDataProto.ByteSizeLong() == 0) {
-      SPDLOG_ERROR("audioData is empty, could not process chunk of audio");
-      continue;
-    }
-
-    // Finished creating the AudioData proto
     std::lock_guard<std::mutex> lock(audioInputMutex_);
+    // Add the audio data to the queue
     audioInputQ_.emplace(std::move(audioDataProto));
-  }
-  alsa_.stopRecording();
-}
 
-/**
- * RistrettoClient::waitForTimeout
- * @brief Waits for a given duration and then disables recording
- */
-void RistrettoClient::waitForTimeout() {
-  SPDLOG_INFO("Recording will end after {} milliseconds", recordingTimeout_.count());
-  std::this_thread::sleep_for(recordingTimeout_);
-  SPDLOG_INFO("Timeout hit, ending recording...");
-  continueRecording_.store(false);
+  } // end of while loop
+
+  alsa_.stopRecording();
 }
 
 /**
@@ -70,24 +62,29 @@ void RistrettoClient::waitForTimeout() {
  */
 void RistrettoClient::renderResults() {
 
+  SPDLOG_INFO("renderResults starting...");
   void* recieved_tag;
-  bool ok = false;
+  bool queueIsOk = false;
   fmt::print("Results will be displayed below.\n");
 
-  while (continueRecording_ && resultCompletionQ_.Next(&recieved_tag, &ok)) {
+  // TODO: It may be best to empty out the queue before exiting the loop
+  //       due to continueRecording_ being false
+  while (continueRecording_ && resultCompletionQ_.Next(&recieved_tag, &queueIsOk)) {
     // The tag identifies the ClientCallData* on the completion queue, so dereference it
-    std::unique_ptr<ClientCallData> call(static_cast<ClientCallData*>(recieved_tag));
+    std::unique_ptr<ClientCallData> callData(static_cast<ClientCallData*>(recieved_tag));
 
-    if (!ok) {
+    if (!queueIsOk) {
       SPDLOG_ERROR("Could not process RPC with tag:{}, skipping this RPC call", recieved_tag);
       continue;
     }
 
-    if (call->status.ok()) {
+    if (callData->status.ok()) {
       // Render results
-      fmt::print("{}", call->transcript.text());
+      SPDLOG_DEBUG("Rendering audioId {} with text \"{}\"", callData->transcript.audioid(),
+                   callData->transcript.text());
+      fmt::print("{}", callData->transcript.text());
     } else {
-      SPDLOG_ERROR("gRPC error:{}", call->status.error_message());
+      SPDLOG_ERROR("gRPC error:{}", callData->status.error_message());
       continue;
     }
   }
@@ -95,11 +92,11 @@ void RistrettoClient::renderResults() {
 }
 
 /**
- * RistrettoClient::processMicrophoneInput
+ * RistrettoClient::decodeMicrophoneInput
  * @brief Consumes audio chunks from another thread, sends it thru gRPC for decoding, and
  *        renders it on screen in a second thread
  */
-void RistrettoClient::processMicrophoneInput() {
+void RistrettoClient::decodeMicrophoneInput() {
 
   SPDLOG_DEBUG("Starting audio processing loop");
   continueRecording_.store(true);
@@ -108,15 +105,20 @@ void RistrettoClient::processMicrophoneInput() {
   auto renderingThread = std::thread(&RistrettoClient::renderResults, this);
   SPDLOG_INFO("Started result rendering thread");
 
-  constexpr unsigned int captureChunkMs = 1000;
   // Record audio in another thread
-  auto recordingThread = std::thread(&RistrettoClient::recordAudioChunks, this, captureChunkMs);
+  auto recordingThread = std::thread(&RistrettoClient::recordAudioChunks, this);
   SPDLOG_INFO("Started recording thread");
 
   // If configured, Stop the recording after a while
   std::thread timeoutThread;
   if (recordingTimeout_.count() > 0) {
-    timeoutThread = std::thread(&RistrettoClient::waitForTimeout, this);
+    timeoutThread = std::thread(
+        [&recordingTimeout_ = recordingTimeout_, &continueRecording_ = continueRecording_] {
+          SPDLOG_INFO("Recording will end after {} milliseconds", recordingTimeout_.count());
+          std::this_thread::sleep_for(recordingTimeout_);
+          SPDLOG_INFO("Timeout hit, ending recording...");
+          continueRecording_.store(false);
+        });
     SPDLOG_INFO("Started recording timeout thread");
   }
 
@@ -128,14 +130,14 @@ void RistrettoClient::processMicrophoneInput() {
       while (audioInputQ_.empty()) {
         // It's possible that there's no audio to send yet, so wait for some to be recorded
         SPDLOG_WARN("Audio input queue is empty, waiting before checking it again");
-        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        std::this_thread::sleep_for(chunkDuration_ + chunkDuration_);
       }
       std::lock_guard<std::mutex> lock(audioInputMutex_);
       std::swap(audioData, audioInputQ_.back());
       audioInputQ_.pop();
     }
 
-    // This will be deallocated by the completion queue processor (RistrettoClient::renderResults)
+    // This will be deallocated by the completion queue handler (RistrettoClient::renderResults)
     ClientCallData* call = new ClientCallData;
 
     call->responseReader =
@@ -148,15 +150,10 @@ void RistrettoClient::processMicrophoneInput() {
   }
   SPDLOG_INFO("Recording ended.");
 
-  if (recordingThread.joinable()) {
-    recordingThread.join();
-  }
-  if (renderingThread.joinable()) {
-    renderingThread.join();
-  }
-  if (timeoutThread.joinable()) {
-    timeoutThread.join();
-  }
+  recordingThread.join();
+  renderingThread.join();
+  timeoutThread.join();
+
   SPDLOG_DEBUG("Exiting...");
   return;
 }
@@ -204,7 +201,8 @@ std::string RistrettoClient::decodeAudioSync(const std::vector<char>& audio, uns
 /**
  * filterResult
  * @brief Strip all the newlines until we get to text and then use all of that text
- *        until we get to the newline
+ *        until we get to the newline. Mostly used for the sake of debugging Kaldi's TCP server.
+ *        Not really needed with the Ristretto server.
  * @param[in] fullResult String with undesired newlines
  * @return String without the undesired newlines
  */

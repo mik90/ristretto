@@ -16,24 +16,21 @@
 #pragma GCC diagnostic pop
 
 namespace mik {
-// Used for sending audio to the Kaldi online2-tcp-nnet3-decode-faster server
-// Given a stream of audio, send it over TCP
-
-std::string filterResult(const std::string& fullResult);
 
 class RistrettoClient {
 public:
-  explicit RistrettoClient(std::shared_ptr<grpc::Channel> channel);
+  explicit RistrettoClient(std::shared_ptr<grpc::Channel> channel,
+                           const AlsaConfig& config = AlsaConfig());
   std::string decodeAudioSync(const std::vector<char>& audio, unsigned int audioId = 0);
-  void processMicrophoneInput();
+  void decodeMicrophoneInput();
   void setRecordingDuration(std::chrono::milliseconds milliseconds) {
     this->recordingTimeout_ = milliseconds;
   };
 
 private:
-  void recordAudioChunks(unsigned int captureDurationMilliseconds);
+  void recordAudioChunks();
   void renderResults();
-  void waitForTimeout();
+  std::chrono::milliseconds chunkDuration_ = std::chrono::milliseconds(1000);
 
   /// @brief Stores captured audio in preparation for sending
   std::queue<RistrettoProto::AudioData> audioInputQ_;
@@ -62,5 +59,7 @@ struct ClientCallData {
 
   std::unique_ptr<grpc::ClientAsyncResponseReader<RistrettoProto::Transcript>> responseReader;
 };
+
+std::string filterResult(const std::string& fullResult);
 
 } // namespace mik

@@ -69,7 +69,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
       client.setRecordingDuration(timeoutSec);
     }
     fmt::print("Processing microphone input\n");
-    client.processMicrophoneInput();
+    client.decodeMicrophoneInput();
   }
 
   return 0;

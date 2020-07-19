@@ -9,6 +9,8 @@
 
 // Note: Logic currently expects the test audio files to be in the current directory
 
+using namespace std::chrono_literals;
+
 TEST(UtilTest, ReadInAudioFile) {
   const auto audioBuffer = mik::Utils::readInAudioFile("test/resources/ClientTestAudio8KHz.raw");
   ASSERT_EQ(audioBuffer.size(), 160000);
@@ -64,7 +66,7 @@ TEST(AlsaTest, PlaybackAudioFromFile) {
 
 class MockAlsaInterface : public mik::AlsaInterface {
 public:
-  MockAlsaInterface(const mik::AlsaConfig& config) : AlsaInterface(config){};
+  MockAlsaInterface(const mik::AlsaConfig& config = mik::AlsaConfig()) : AlsaInterface(config){};
   void setAudioData(const std::vector<char>& v) { audioData_ = v; }
 };
 
@@ -87,7 +89,7 @@ TEST(AlsaTest, consumeDurationOfAudio_10ms) {
   alsa.setAudioData(internalAudioData);
 
   // 10 is 2 periods (each 128 bytes) totalling 256 bytes
-  const auto audioData = alsa.consumeDurationOfAudioData(10);
+  const auto audioData = alsa.consumeDurationOfAudioData(10ms);
   ASSERT_EQ(256, audioData.size());
 }
 
@@ -98,6 +100,23 @@ TEST(AlsaTest, consumeDurationOfAudio_LargeRequest) {
   alsa.setAudioData(internalAudioData);
 
   // 1000 milliseconds is a lot, so it should just return all the data that is available
-  const auto audioData = alsa.consumeDurationOfAudioData(1000);
+  const auto audioData = alsa.consumeDurationOfAudioData(1000ms);
   ASSERT_EQ(internalAudioData.size(), audioData.size());
+}
+
+TEST(AlsaTest, calcAudioDurationAndSize) {
+  MockAlsaInterface alsa;
+  const auto singlePeriodSize = alsa.getConfiguration().periodSizeBytes;
+  const auto singlePeriodDuration =
+      std::chrono::microseconds(alsa.getConfiguration().periodDuration_us);
+
+  // Get duration of single period in ms
+  const auto duration = alsa.bytesToAudioDuration(singlePeriodSize);
+  ASSERT_EQ(duration, singlePeriodDuration);
+
+  // Use the duration we got from the previous call, so that this will calculate
+  // the size of a single period
+  const auto size = alsa.audioDurationToBytes(duration);
+
+  ASSERT_EQ(singlePeriodSize, size);
 }

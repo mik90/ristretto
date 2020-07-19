@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+#include <map>
 #include <memory>
 
 #include <fmt/core.h>
@@ -10,8 +12,8 @@
 #include "KaldiInterface.hpp"
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wuseless-cast"
-#include "ristretto.grpc.pb.h"
+#pragma GCC diagnostic ignored "-Wuseless-cast" // NOLINT: Clang-tidy is not aware of the warning,
+#include "ristretto.grpc.pb.h"                  // it is a gcc warning after all
 #pragma GCC diagnostic pop
 
 // Reference:
@@ -19,30 +21,55 @@
 
 namespace mik {
 
+/**
+ * RistrettoServer
+ * @brief Top level class that's to be instantiated in main() and ran
+ * @todo Be const-correct with the server reference and decodeAudio. They're meant to be called by
+ * multiple threads
+ */
 class RistrettoServer {
 public:
-  RistrettoServer(int argc, char* argv[]);
+  // NOLINTNEXTLINE: Passing command line args to Kaldi
+  explicit RistrettoServer(std::filesystem::path configPath, int argc, const char** argv);
+  // There should only be one, ensure that this is not copied
+  RistrettoServer(const RistrettoServer&) = delete;
+  RistrettoServer(RistrettoServer&&) = delete;
   ~RistrettoServer();
+
   void run();
 
+  // Give AsyncCallData objects the ability to use the single server instance
+  [[nodiscard]] RistrettoServer& getServerReference() { return *this; }
+
+  // Any async call should be able to call this function
+  [[nodiscard]] std::string decodeAudio(const std::string& sessionToken, uint32_t audioId,
+                                        std::unique_ptr<std::string> audioDataPtr);
+
 private:
-  // Thread safe
   void handleRpcs();
-  std::unique_ptr<grpc::ServerCompletionQueue> cq_;
+  std::unique_ptr<grpc::ServerCompletionQueue> completionQueue_;
   RistrettoProto::Decoder::AsyncService service_;
   std::unique_ptr<grpc::Server> server_;
-  kaldi::Nnet3Data nnet3_;
+
+  std::mutex sessionMapMutex_;
+  /// @brief SessionToken mapped to Nnet3Data
+  std::map<std::string, mik::Nnet3Data> sessionMap_;
+
+  std::filesystem::path configFile_;
+
+  const int argc_;    // NOLINT: Passing command line args to Kaldi
+  const char** argv_; // NOLINT: Passing command line args to Kaldi
 };
 
-class CallData {
+class AsyncCallData {
 public:
-  CallData(RistrettoProto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq,
-           std::function<std::string(std::unique_ptr<std::string>)> decoderFunc);
-  void proceed(std::function<std::string(std::unique_ptr<std::string>)> decoderFunc);
+  AsyncCallData(RistrettoProto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq,
+                RistrettoServer& serverRef);
+  void proceed();
 
 private:
   RistrettoProto::Decoder::AsyncService* service_;
-  grpc::ServerCompletionQueue* cq_;
+  grpc::ServerCompletionQueue* completionQueue_;
   grpc::ServerContext ctx_;
 
   RistrettoProto::AudioData audioData_;
@@ -52,6 +79,8 @@ private:
 
   enum CallStatus { CREATE, PROCESS, FINISH };
   CallStatus status_;
+
+  RistrettoServer& serverRef_;
 };
 
 } // namespace mik

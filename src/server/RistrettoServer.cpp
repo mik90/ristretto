@@ -7,69 +7,136 @@
 #include "RistrettoServer.hpp"
 namespace mik {
 
-RistrettoServer::RistrettoServer(int argc, char* argv[]) : nnet3_(argc, argv) {
+/// @brief Placeholder name for the first decoding session
+const std::string firstSessionToken = "firstSession";
+
+/**
+ * RistrettoServer::RistrettoServer
+ */
+// NOLINTNEXTLINE: Passing command line args to Kaldi
+RistrettoServer::RistrettoServer(std::filesystem::path configPath, int argc, const char** argv)
+    : sessionMapMutex_(), sessionMap_(), configFile_(std::move(configPath)), argc_(argc),
+      argv_(argv) {
+
+  SPDLOG_INFO("Inserting firstSessionToken placeholder");
+  // Create an Nnet3Data in anticipation of a session
+  sessionMap_.emplace(
+      std::piecewise_construct, std::forward_as_tuple(firstSessionToken),
+      std::forward_as_tuple(argc_, argv_)); // NOLINT: Passing command line args to Kaldi
+
   SPDLOG_INFO("Constructed RistrettoServer");
 }
 
+std::string RistrettoServer::decodeAudio(const std::string& sessionToken, uint32_t audioId,
+                                         std::unique_ptr<std::string> audioDataPtr) {
+
+  std::lock_guard<std::mutex> lock(sessionMapMutex_);
+
+  // If the first session token is available, use that
+
+  const auto firstSessionTokenPresent = sessionMap_.find(firstSessionToken) != sessionMap_.end();
+  const auto currentSessionFound = sessionMap_.find(sessionToken) != sessionMap_.end();
+
+  if (firstSessionTokenPresent) {
+    // New session!
+    // We're able to use the first slot in the map!
+    auto mapNode = sessionMap_.extract(firstSessionToken);
+    // Overwrite the firstSession key
+    mapNode.key() = sessionToken;
+    sessionMap_.insert(std::move(mapNode));
+
+  } else if (currentSessionFound) {
+    // Session is found in the map
+    SPDLOG_INFO("Found session token {} in sessionMap_!", sessionToken);
+
+  } else if (!currentSessionFound) {
+    // Session is not found, add it
+    SPDLOG_INFO("First appearance of session token {}", sessionToken);
+    sessionMap_.emplace(std::piecewise_construct, std::forward_as_tuple(sessionToken),
+                        std::forward_as_tuple(argc_, argv_));
+  }
+
+  // Pre-condition checks are over, now decode
+  // Note: I tried just deferencing with sessionMap_[sessionToken].decodeAudio() but that somehow
+  // compiled into a copy
+  auto sessionIt = sessionMap_.find(sessionToken);
+  return sessionIt->second.decodeAudio(sessionToken, audioId, std::move(audioDataPtr));
+}
+/**
+ * RistrettoServer::~RistrettoServer
+ */
 RistrettoServer::~RistrettoServer() {
   server_->Shutdown();
-  cq_->Shutdown();
+  completionQueue_->Shutdown();
 }
 
+/**
+ * RistrettoServer::run
+ */
 void RistrettoServer::run() {
   SPDLOG_DEBUG("run() start");
-  std::string serverAddress("0.0.0.0:5050");
+  /// @todo Read this value from configFile using nlohmann/json
+  const std::string serverAddress("0.0.0.0:5050");
 
   grpc::ServerBuilder builder;
   builder.AddListeningPort(serverAddress, grpc::InsecureServerCredentials());
   builder.RegisterService(&service_);
-  cq_ = builder.AddCompletionQueue();
+  completionQueue_ = builder.AddCompletionQueue();
   server_ = builder.BuildAndStart();
   fmt::print("Server listening on {}\n", serverAddress);
 
-  SPDLOG_DEBUG("run() end");
   handleRpcs();
 }
 
+/**
+ * RistrettoServer::handleRpcs
+ */
 void RistrettoServer::handleRpcs() {
-  new CallData(&service_, cq_.get(), nnet3_.getDecoderLambda());
+  new AsyncCallData(&service_, completionQueue_.get(), getServerReference());
   void* tag;
   bool ok;
   SPDLOG_DEBUG("about to process Rpcs");
 
   while (true) {
 
-    GPR_ASSERT(cq_->Next(&tag, &ok));
+    GPR_ASSERT(completionQueue_->Next(&tag, &ok));
     GPR_ASSERT(ok);
-    static_cast<CallData*>(tag)->proceed(nnet3_.getDecoderLambda());
+
+    static_cast<AsyncCallData*>(tag)->proceed();
   }
 }
 
-CallData::CallData(RistrettoProto::Decoder::AsyncService* service, grpc::ServerCompletionQueue* cq,
-                   std::function<std::string(std::unique_ptr<std::string>)> decoderFunc)
-    : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
-  SPDLOG_DEBUG("Constructing CallData");
-  proceed(std::move(decoderFunc));
+/**
+ * AsyncCallData::AsyncCallData
+ */
+AsyncCallData::AsyncCallData(RistrettoProto::Decoder::AsyncService* service,
+                             grpc::ServerCompletionQueue* cq, RistrettoServer& serverRef)
+    : service_(service), completionQueue_(cq), responder_(&ctx_), status_(CREATE),
+      serverRef_(serverRef) {
+  SPDLOG_DEBUG("Constructing AsyncCallData");
+  proceed();
 }
 
-void CallData::proceed(std::function<std::string(std::unique_ptr<std::string>)> decoderFunc) {
-  SPDLOG_DEBUG("Running CallData state machine with state:{}", static_cast<int>(status_));
+/**
+ * AsyncCallData::proceed
+ */
+void AsyncCallData::proceed() {
+  SPDLOG_DEBUG("Running AsyncCallData state machine with state:{}", static_cast<int>(status_));
   if (status_ == CREATE) {
     status_ = PROCESS;
 
-    service_->RequestDecodeAudio(&ctx_, &audioData_, &responder_, cq_, cq_, this);
+    service_->RequestDecodeAudio(&ctx_, &audioData_, &responder_, completionQueue_,
+                                 completionQueue_, this);
   } else if (status_ == PROCESS) {
-    new CallData(service_, cq_, decoderFunc);
+    new AsyncCallData(service_, completionQueue_, serverRef_);
 
-    SPDLOG_DEBUG("Constructed new CallData to replace old one");
-    SPDLOG_DEBUG("Grabbing audioData...");
-    // Grab the audiodata
-    std::unique_ptr<std::string> audioDataPtr(audioData_.release_audio());
-    // Call the decoder lambda
     SPDLOG_DEBUG("Starting decoding...");
-    const auto text = decoderFunc(std::move(audioDataPtr));
+    const auto text =
+        serverRef_.decodeAudio(audioData_.sessiontoken(), audioData_.audioid(),
+                               std::unique_ptr<std::string>(audioData_.release_audio()));
     transcript_.set_text(text);
     transcript_.set_audioid(audioData_.audioid());
+    transcript_.set_sessiontoken(audioData_.sessiontoken());
 
     status_ = FINISH;
     SPDLOG_DEBUG("Responding with transcript: {}", text);
@@ -79,4 +146,5 @@ void CallData::proceed(std::function<std::string(std::unique_ptr<std::string>)> 
     delete this;
   }
 }
+
 } // namespace mik

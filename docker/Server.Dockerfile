@@ -1,5 +1,8 @@
 FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04 as kaldi-ubuntu18.04
 
+# TODO Make a dev and prod version of this
+
+# Note: the clang packages are only needed for dev, they take up a lot of space
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
   g++ \
@@ -29,38 +32,35 @@ RUN apt-get update && \
   && apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main' \
   && apt update \
   && apt install -y --no-install-recommends \ 
-  gcc-9 g++-9 cmake ccache ninja-build curl clang-format-9 \
+  gcc-9 g++-9 cmake ccache ninja-build  \
+  curl clang-format-9 clang-tidy-9 \
   python3 python3-distutils \
   build-essential \
   pkg-config  \
   && ln -sv /usr/bin/clang-format-9 /usr/bin/clang-format \
+  && ln -sv /usr/bin/clang-tidy-9 /usr/bin/clang-tidy \
   && ln -s /usr/bin/python2.7 /usr/bin/python \
   && rm -rf /var/lib/apt/lists/*
 
+
 # Build kaldi with cmake
 # - When using vscode, can add a kaldi/.vscode/settings.json that updates the cmake.configureSettings
-# - Kaldi will not build with GCC-9 requires use with 5.4
-#   - Are GCC 9 and 5.4 even ABI compatible?
-# - Kaldi defaults to OpenBLAS in CMake, so that requires an additiona package
-# Build Kaldi with the newer cmake
-# Install to /opt/kaldi/dist
-# TODO Append /opt/kaldi/dist/bin to PATH so that the kaldi scripts can find it
-#      I should be able to avoid building with the makefiles once that's done
-RUN git clone --depth 1 https://github.com/kaldi-asr/kaldi.git /opt/kaldi && \
-  cd /opt/kaldi && \
-  cd /opt/kaldi/tools && \
-  ./extras/install_mkl.sh && \
-  make -j $(nproc) && \
-  cd /opt/kaldi/src && \
-  ./configure --shared --use-cuda && \
-  make depend -j $(nproc) && \
-  make -j $(nproc) && \
-  mkdir /opt/kaldi/build && \
-  cd /opt/kaldi/build && \
-  cmake .. -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs \
-  -DCMAKE_INSTALL_PREFIX=../dist \
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  && cmake --build . --parallel $(nproc) --target install
+#   so that the CMAKE_LIBRARY_PATH is adjusted correctly
+# - Kaldi will not build with GCC-9 , just use the system's GCC-7
+# - Kaldi does not build the OpenFST binaries like fstarcsort so that has to be
+#   done manually in order to complete the model-setup steps
+RUN git clone --depth 1 https://github.com/kaldi-asr/kaldi.git /opt/kaldi \
+  && mkdir /opt/kaldi/build \
+  && cd /opt/kaldi/build \
+  && cmake .. -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs \
+              -DCMAKE_INSTALL_PREFIX=/usr \
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  && cmake --build . --target install --parallel $(nproc) \
+  && cmake --build . --target clean --parallel $(nproc) \
+  && cd openfst \
+  && ./configure --prefix=/usr \
+  && make install -j $(nproc) \
+  && make clean -j $(nproc)
 
 # Clean up the cache
 RUN rm -rf /var/lib/apt/lists/*
@@ -73,6 +73,7 @@ WORKDIR /opt/ristretto
 ENV force_color_prompt=yes
 
 # After building kaldi, set gcc-9 as the default
+# "60" is the priority
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 60  \
   --slave /usr/bin/g++ g++ /usr/bin/g++-9
 
@@ -88,20 +89,20 @@ RUN rm -rf /var/lib/apt/lists/*
 FROM buildenv as grpc-build 
 
 # Reference: https://github.com/npclaudiu/grpc-cpp-docker/blob/master/Dockerfile
-ENV GRPC_RELEASE_TAG v1.29.1
+ENV GRPC_RELEASE_TAG v1.30.2
 
 RUN git clone --depth 1 -b ${GRPC_RELEASE_TAG} https://github.com/grpc/grpc /opt/grpc \
   && cd /opt/grpc \
   && git submodule update --init --recursive --depth 1
 
-# TODO Just build grpc and protobuf for C++
-RUN cd /opt/grpc/third_party/protobuf \
-  && ./autogen.sh && ./configure --enable-shared \
-  && make -j $(nproc) && make install && make clean \
+RUN cd /opt/grpc && make -j $(nproc) && make install && make clean \
+  && mkdir build && cd build \
+  && cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/ \
+  && cmake --build . --target install --parallel $(nproc) \
+  && cmake --build . --target clean \
   && ldconfig
 
-RUN cd /opt/grpc && make -j $(nproc) && make install && make clean \
-  && ldconfig
+RUN rm -rf /opt/grpc
 
 # -------------------------------------------------------
 FROM grpc-build as model-setup

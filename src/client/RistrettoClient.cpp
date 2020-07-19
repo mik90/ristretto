@@ -3,6 +3,8 @@
 #include <future>
 #include <iostream>
 
+#include <uuid/uuid.h>
+
 #include <fmt/core.h>
 #include <fmt/locale.h>
 #include <grpc/support/log.h>
@@ -15,11 +17,29 @@
 namespace mik {
 
 /**
+ * generateSessionToken
+ * @brief Generates an upper-case random token using the operating system's UUID library
+ */
+std::string generateSessionToken() {
+  uuid_t uuidBinary;
+  uuid_generate_random(uuidBinary);
+  constexpr size_t uuidSize = sizeof(uuid_t);
+
+  std::string token(uuidSize, '0');
+  // Write the UUID binary data into the std::string
+  uuid_unparse_upper(uuidBinary, token.data());
+  return token;
+}
+
+/**
  * RistrettoClient::RistrettoClient
  */
 RistrettoClient::RistrettoClient(std::shared_ptr<grpc::Channel> channel, const AlsaConfig& config)
     : stub_(RistrettoProto::Decoder::NewStub(channel)), config_(config), alsa_(config_) {
   SPDLOG_INFO("Constructed RistrettoClient");
+
+  sessionToken_ = generateSessionToken();
+  SPDLOG_INFO("Created session token \"{}\"", sessionToken_);
 }
 
 /**
@@ -45,6 +65,7 @@ void RistrettoClient::recordAudioChunks() {
     RistrettoProto::AudioData audioDataProto;
     audioDataProto.set_audio(audioData.data(), audioData.size());
     audioDataProto.set_audioid(audioId++);
+    audioDataProto.set_sessiontoken(sessionToken_);
 
     std::lock_guard<std::mutex> lock(audioInputMutex_);
     // Add the audio data to the queue
@@ -164,12 +185,13 @@ void RistrettoClient::decodeMicrophoneInput() {
  */
 std::string RistrettoClient::decodeAudioSync(const std::vector<char>& audio, unsigned int audioId) {
 
-  RistrettoProto::AudioData audioData;
-  audioData.set_audio(audio.data(), audio.size());
-  audioData.set_audioid(audioId);
-  SPDLOG_INFO("Sending {} bytes of audio", audioData.ByteSizeLong());
-  if (audioData.ByteSizeLong() == 0) {
-    SPDLOG_ERROR("audioData is empty, abandoning RPC");
+  RistrettoProto::AudioData audioDataProto;
+  audioDataProto.set_audio(audio.data(), audio.size());
+  audioDataProto.set_audioid(audioId);
+  audioDataProto.set_sessiontoken(sessionToken_);
+  SPDLOG_INFO("Sending {} bytes of audio", audioDataProto.ByteSizeLong());
+  if (audioDataProto.ByteSizeLong() == 0) {
+    SPDLOG_ERROR("audioDataProto is empty, abandoning RPC");
     return {};
   }
 
@@ -178,7 +200,7 @@ std::string RistrettoClient::decodeAudioSync(const std::vector<char>& audio, uns
   grpc::Status status;
 
   std::unique_ptr<grpc::ClientAsyncResponseReader<RistrettoProto::Transcript>> rpc(
-      stub_->AsyncDecodeAudio(&context, audioData, &resultCompletionQ));
+      stub_->AsyncDecodeAudio(&context, audioDataProto, &resultCompletionQ));
 
   RistrettoProto::Transcript transcipt;
   auto tag = reinterpret_cast<void*>(1);

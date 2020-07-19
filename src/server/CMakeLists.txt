@@ -1,6 +1,15 @@
 find_package(kaldi CONFIG REQUIRED
-    PATHS ${CMAKE_SOURCE_DIR}/../kaldi/dist/lib/cmake/kaldi
+    PATHS /usr/lib/cmake/kaldi
 )
+
+find_package(protobuf CONFIG REQUIRED
+    PATHS /usr/lib/cmake/protobuf
+)
+
+find_package(gRPC CONFIG REQUIRED
+    PATHS /usr/lib/cmake/grpc
+)
+
 
 add_library(protoObjects OBJECT
     ${ristretto_proto_srcs}
@@ -42,15 +51,17 @@ target_link_libraries(RistrettoServerLib PUBLIC
     project_warnings
 
     # system gRPC/Protobuf
-    protobuf
-    grpc++_unsecure
-    gpr
+    protobuf::libprotobuf
+    gRPC::grpc++_unsecure
+    gRPC::gpr
+    gRPC::absl_base
 
     # Libs from conan
     CONAN_PKG::fmt
     CONAN_PKG::spdlog
 
     # Kaldi and OpenFST
+    # These targets are not exposed under a namespace
     fst
     kaldi-base
     kaldi-matrix

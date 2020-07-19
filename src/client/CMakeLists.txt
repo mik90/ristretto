@@ -29,19 +29,26 @@ target_include_directories(RistrettoClientLib PUBLIC
 target_link_libraries(RistrettoClientLib PUBLIC
     # Generated files trigger warnings, compiled them separately
     protoObjects
+
     # Project settings
     project_options
     project_warnings
+
     # Internal libs
     AlsaInterface
+
     # Conan packages
     CONAN_PKG::fmt
     CONAN_PKG::spdlog
     CONAN_PKG::docopt.cpp
+
     # System-included gRPC/protobuf
     protobuf
     grpc++_unsecure
     gpr
+    
+    # System-included uuid lib
+    uuid
 )
 
 add_executable(RistrettoClient

@@ -32,6 +32,8 @@ private:
   void renderResults();
   std::chrono::milliseconds chunkDuration_ = std::chrono::milliseconds(1000);
 
+  std::string sessionToken_;
+
   /// @brief Stores captured audio in preparation for sending
   std::queue<RistrettoProto::AudioData> audioInputQ_;
   /// @brief Used for modifying the audioInputQ

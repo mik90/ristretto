@@ -6,6 +6,7 @@ set(ristretto_proto_hdrs "${CMAKE_BINARY_DIR}/src/ristretto.pb.h")
 set(ristretto_grpc_srcs "${CMAKE_BINARY_DIR}/src/ristretto.grpc.pb.cc")
 set(ristretto_grpc_hdrs "${CMAKE_BINARY_DIR}/src/ristretto.grpc.pb.h")
 
+# gRPC also exposes the gRPC::grpc_cpp_plugin cmake target
 find_program(GRPC_CPP_PLUGIN_EXEC
     grpc_cpp_plugin
     PATHS /usr/bin /usr/local/bin

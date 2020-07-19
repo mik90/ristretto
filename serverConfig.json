@@ -1,0 +1,78 @@
+{
+  "version": "0.1",
+  "title": "Ristretto server configuration",
+  "description": "Config values for Ristretto. Kaldi values are converted to JSON here but not actually used",
+  "parameters": [
+    {
+      "serverIpAndPort": {
+        "type": "srring",
+        "value": "0.0.0.0:5050" }
+    },
+    {
+      "verbose": {
+        "type": "integer",
+        "value": 1 }
+    },
+    {
+      "framesPerChunk": {
+        "type": "integer",
+        "value": 20 }
+    },
+    {
+      "extraLeftContextInitial": {
+        "type": "integer",
+        "value": 0 }
+    },
+    {
+      "frameSubSamplingFactor": {
+        "type": "integer",
+        "value": 3 }
+    },
+    {
+      "config": {
+        "type": "file",
+        "value": "/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/online.conf" }
+    },
+    {
+      "minActive": {
+        "type": "integer",
+        "value": 200 }
+    },
+    {
+      "maxActive": {
+        "type": "integer",
+        "value": 7000 }
+    },
+    {
+      "beam": {
+        "type": "float",
+        "value": 15.0 }
+    },
+    {
+      "latticeBeam": {
+        "type": "float",
+        "value": 6.0 }
+    },
+    {
+      "acousticScale": {
+        "type": "float",
+        "value": 1.0 }
+    },
+    {
+      "model": {
+        "type": "file",
+        "value": "/opt/kaldi/egs/aspire/s5/exp/chain/tdnn_7b/final.mdl" }
+    },
+    {
+      "hclg": {
+        "type": "file",
+        "value": "/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/HCLG.fst" }
+    },
+    {
+      "words": {
+        "type": "file",
+        "value": "/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/words.txt" }
+    }
+  ]
+
+}

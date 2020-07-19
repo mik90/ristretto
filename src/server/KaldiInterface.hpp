@@ -22,6 +22,8 @@
 // Modified for use in Ristretto
 #pragma once
 
+#include <mutex>
+
 #include "feat/wave-reader.h"
 #include "fstext/fstext-lib.h"
 #include "lat/lattice-functions.h"
@@ -33,69 +35,60 @@
 #include "online2/onlinebin-util.h"
 #include "util/kaldi-thread.h"
 
-#include "fstext/fstext-lib.h"
-#include "lat/lattice-functions.h"
-
-#include <mutex>
 #include <spdlog/spdlog.h>
 
-namespace kaldi {
+namespace mik {
 
-// Catch-all class for using online decoding with nnet3
+/**
+ * Nnet3Data
+ * @brief Catch-all class for using online decoding with nnet3. Holds a lot of Kaldi objects
+ */
 class Nnet3Data {
+
 public:
-  Nnet3Data(int argc, char* argv[]);
+  // NOLINTNEXTLINE: Easiest to use cmd line args with kaldi
+  Nnet3Data(int argc, const char** argv);
 
-  // Allows async functions to use the Nnet3 decoder
-  auto getDecoderLambda() {
-    SPDLOG_DEBUG("Creating a decoder lambda");
-    return [this](std::unique_ptr<std::string> audioData) {
-      return this->decodeAudio(std::move(audioData));
-    };
-  }
-
-protected:
-  std::string decodeAudio(std::unique_ptr<std::string> audioData);
+  std::string decodeAudio(const std::string& sessionToken, uint32_t audioId,
+                          std::unique_ptr<std::string> audioDataPtr);
 
 private:
-  OnlineNnet2FeaturePipelineConfig featureOpts;
-  nnet3::NnetSimpleLoopedComputationOptions decodableOpts;
-  LatticeFasterDecoderConfig decoderOpts;
-  OnlineEndpointConfig endpointOpts;
-  BaseFloat frameShift;
-  int32 frameSubsampling;
-  TransitionModel transModel;
-  nnet3::AmNnetSimple amNnet;
-  fst::Fst<fst::StdArc>* decodeFst;
-  fst::SymbolTable* wordSyms;
-  BaseFloat chunkLengthSecs;
-  BaseFloat outputPeriod;
-  BaseFloat sampFreq;
-  int portNum;
-  int readTimeout;
-  bool produceTime;
-  int32 sampCount;
-  size_t chunkLen;
-  int32 checkPeriod;
-  int32 checkCount;
-  int32 frameOffset;
-  std::unique_ptr<OnlineNnet2FeaturePipeline> featurePipelinePtr;
-  std::unique_ptr<SingleUtteranceNnet3Decoder> decoderPtr;
-  std::unique_ptr<OnlineSilenceWeighting> silenceWeightingPtr;
-  std::unique_ptr<OnlineNnet2FeaturePipelineInfo> featureInfoPtr;
-  std::unique_ptr<nnet3::DecodableNnetSimpleLoopedInfo> decodableInfoPtr;
-  std::vector<std::pair<int32, BaseFloat>> deltaWeights;
+  std::mutex decoderMutex_;
 
-  std::mutex decoderMutex;
+  // Kaldi data
+  kaldi::OnlineNnet2FeaturePipelineConfig featureOpts_;
+  kaldi::nnet3::NnetSimpleLoopedComputationOptions decodableOpts_;
+  kaldi::LatticeFasterDecoderConfig decoderOpts_;
+  kaldi::OnlineEndpointConfig endpointOpts_;
+  kaldi::BaseFloat frameShift_;
+  kaldi::int32 frameSubsampling_;
+  kaldi::TransitionModel transModel_;
+  kaldi::nnet3::AmNnetSimple amNnet_;
+  fst::Fst<fst::StdArc>* decodeFst_;
+  fst::SymbolTable* wordSyms_;
+  kaldi::BaseFloat chunkLengthSecs_;
+  kaldi::BaseFloat outputPeriod;
+  kaldi::BaseFloat sampFreq_;
+  int readTimeout_;
+  bool produceTime_;
+  kaldi::int32 sampCount;
+  size_t chunkLen_;
+  kaldi::int32 checkPeriod_;
+  kaldi::int32 checkCount_;
+  kaldi::int32 frameOffset_;
+  std::unique_ptr<kaldi::OnlineNnet2FeaturePipeline> featurePipelinePtr_;
+  std::unique_ptr<kaldi::SingleUtteranceNnet3Decoder> decoderPtr_;
+  std::unique_ptr<kaldi::OnlineSilenceWeighting> silenceWeightingPtr_;
+  std::unique_ptr<kaldi::OnlineNnet2FeaturePipelineInfo> featureInfoPtr_;
+  std::unique_ptr<kaldi::nnet3::DecodableNnetSimpleLoopedInfo> decodableInfoPtr_;
+  std::vector<std::pair<kaldi::int32, kaldi::BaseFloat>> deltaWeights_;
 };
 
-Vector<BaseFloat> deserializeAudioData(std::unique_ptr<std::string> audioDataPtr);
+kaldi::Vector<kaldi::BaseFloat> stringToKaldiVector(std::unique_ptr<std::string> audioDataPtr);
 
-int runDecodeServer(int argc, char* argv[]);
+std::string LatticeToString(const kaldi::Lattice& lat, const fst::SymbolTable& wordSyms);
+std::string GetTimeString(kaldi::int32 tBeg, kaldi::int32 tEnd, kaldi::BaseFloat timeUnit);
+kaldi::int32 GetLatticeTimeSpan(const kaldi::Lattice& lat);
+std::string LatticeToString(const kaldi::CompactLattice& clat, const fst::SymbolTable& wordSyms);
 
-std::string LatticeToString(const Lattice& lat, const fst::SymbolTable& wordSyms);
-std::string GetTimeString(int32 tBeg, int32 tEnd, BaseFloat timeUnit);
-int32 GetLatticeTimeSpan(const Lattice& lat);
-std::string LatticeToString(const CompactLattice& clat, const fst::SymbolTable& wordSyms);
-
-} // namespace kaldi
+} // namespace mik

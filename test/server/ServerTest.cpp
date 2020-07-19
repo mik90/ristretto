@@ -14,7 +14,7 @@ TEST(DeserializeTest, SizeDecreased) {
   ASSERT_EQ(input.length(), 6);
 
   // Pass in a unique copy of the input
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
   ASSERT_EQ(output.Dim(), 3);
 }
@@ -26,7 +26,7 @@ TEST(DeserializeTest, UnevenInputLength) {
   ASSERT_EQ(input.length(), 5);
 
   // Pass in a unique copy of the input
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
   ASSERT_EQ(output.Dim(), 3);
 }
@@ -38,7 +38,7 @@ TEST(DeserializeTest, ValuePreserved) {
   const std::string input = {0x01, 0x00, 0x02, 0x00};
 
   // Pass in a unique copy of the input
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
   // There should be half as many elements in the output
   ASSERT_EQ(input.length() / 2, output.Dim());
@@ -55,7 +55,7 @@ TEST(DeserializeTest, ValueChanged) {
   const std::string input = {0x00, 0x01, 0x00, 0x02};
 
   // Pass in a unique copy of the input
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
   // There should be half as many elements in the output
   ASSERT_EQ(input.length() / 2, output.Dim());
@@ -72,7 +72,7 @@ TEST(DeserializeTest, ConvertValidValues) {
   // Just a check to ensure that this is 20 values
   ASSERT_EQ(input.length(), 20);
 
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
   const auto expectedOutput = TestUtils::initializerListToKaldiVector(
       std::initializer_list<kaldi::BaseFloat>{0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0, 1.0});
@@ -91,7 +91,7 @@ TEST(DeserializeTest, ConvertValidValues_UnevenAmount) {
                              0,         0, 0, -1, -1, 0, 0, 1, 0, 35};
   ASSERT_EQ(input.length(), 21);
 
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
   const auto expectedOutput =
       TestUtils::initializerListToKaldiVector(std::initializer_list<kaldi::BaseFloat>{
@@ -108,7 +108,7 @@ TEST(DeserializeTest, ConvertValidValuesSigned) {
   const std::string input = {int8_t(-54), 0};
   const auto inputLength = input.length();
 
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
   const auto expectedOutput =
       TestUtils::initializerListToKaldiVector(std::initializer_list<kaldi::BaseFloat>{202});

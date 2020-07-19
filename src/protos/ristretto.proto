@@ -10,9 +10,11 @@ service Decoder {
 message AudioData {
    bytes audio = 1;
    uint32 audioId = 2;
+   string sessionToken = 3;
 }
 
 message Transcript {
    string text = 1;
    uint32 audioId = 2;
+   string sessionToken = 3;
 }

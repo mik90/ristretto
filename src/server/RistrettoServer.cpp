@@ -1,7 +1,9 @@
 #include <grpc++/grpc++.h>
 #include <grpc/support/log.h>
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 
+#include <fstream>
 #include <memory>
 
 #include "RistrettoServer.hpp"
@@ -27,17 +29,16 @@ RistrettoServer::RistrettoServer(std::filesystem::path configPath, int argc, con
   SPDLOG_INFO("Constructed RistrettoServer");
 }
 
-std::string RistrettoServer::decodeAudio(const std::string& sessionToken, uint32_t audioId,
-                                         std::unique_ptr<std::string> audioDataPtr) {
+void RistrettoServer::updateSessionMap(const std::string& sessionToken) {
 
   std::lock_guard<std::mutex> lock(sessionMapMutex_);
 
   // If the first session token is available, use that
 
-  const auto firstSessionTokenPresent = sessionMap_.find(firstSessionToken) != sessionMap_.end();
-  const auto currentSessionFound = sessionMap_.find(sessionToken) != sessionMap_.end();
+  const auto isFirstSessionTokenPresent = sessionMap_.find(firstSessionToken) != sessionMap_.end();
+  const auto isCurrentSessionFound = sessionMap_.find(sessionToken) != sessionMap_.end();
 
-  if (firstSessionTokenPresent) {
+  if (isFirstSessionTokenPresent) {
     // New session!
     // We're able to use the first slot in the map!
     auto mapNode = sessionMap_.extract(firstSessionToken);
@@ -45,18 +46,23 @@ std::string RistrettoServer::decodeAudio(const std::string& sessionToken, uint32
     mapNode.key() = sessionToken;
     sessionMap_.insert(std::move(mapNode));
 
-  } else if (currentSessionFound) {
+  } else if (isCurrentSessionFound) {
     // Session is found in the map
     SPDLOG_INFO("Found session token {} in sessionMap_!", sessionToken);
 
-  } else if (!currentSessionFound) {
+  } else if (!isCurrentSessionFound) {
     // Session is not found, add it
     SPDLOG_INFO("First appearance of session token {}", sessionToken);
     sessionMap_.emplace(std::piecewise_construct, std::forward_as_tuple(sessionToken),
                         std::forward_as_tuple(argc_, argv_));
   }
+}
 
-  // Pre-condition checks are over, now decode
+std::string RistrettoServer::decodeAudio(const std::string& sessionToken, uint32_t audioId,
+                                         std::unique_ptr<std::string> audioDataPtr) {
+
+  this->updateSessionMap(sessionToken);
+
   // Note: I tried just deferencing with sessionMap_[sessionToken].decodeAudio() but that somehow
   // compiled into a copy
   auto sessionIt = sessionMap_.find(sessionToken);
@@ -75,15 +81,21 @@ RistrettoServer::~RistrettoServer() {
  */
 void RistrettoServer::run() {
   SPDLOG_DEBUG("run() start");
-  /// @todo Read this value from configFile using nlohmann/json
-  const std::string serverAddress("0.0.0.0:5050");
+
+  std::string serverAddress;
+  {
+    std::fstream inputStream(configFile_, std::ios_base::in);
+    const auto configJsonObject = nlohmann::json::parse(inputStream);
+    const auto ipAndPortObj = configJsonObject["serverParameters"]["ipAndPort"];
+    serverAddress = ipAndPortObj["value"];
+  }
 
   grpc::ServerBuilder builder;
   builder.AddListeningPort(serverAddress, grpc::InsecureServerCredentials());
   builder.RegisterService(&service_);
   completionQueue_ = builder.AddCompletionQueue();
   server_ = builder.BuildAndStart();
-  fmt::print("Server listening on {}\n", serverAddress);
+  fmt::print("Server started. Listening on {}\n", serverAddress);
 
   handleRpcs();
 }

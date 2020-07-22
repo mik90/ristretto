@@ -34,7 +34,7 @@ public:
   // There should only be one, ensure that this is not copied
   RistrettoServer(const RistrettoServer&) = delete;
   RistrettoServer(RistrettoServer&&) = delete;
-  ~RistrettoServer();
+  virtual ~RistrettoServer();
 
   void run();
 
@@ -46,6 +46,8 @@ public:
                                         std::unique_ptr<std::string> audioDataPtr);
 
 private:
+  void updateSessionMap(const std::string& sessionToken);
+
   void handleRpcs();
   std::unique_ptr<grpc::ServerCompletionQueue> completionQueue_;
   RistrettoProto::Decoder::AsyncService service_;
@@ -57,6 +59,7 @@ private:
 
   std::filesystem::path configFile_;
 
+  // Kaldi cmd line args
   const int argc_;    // NOLINT: Passing command line args to Kaldi
   const char** argv_; // NOLINT: Passing command line args to Kaldi
 };

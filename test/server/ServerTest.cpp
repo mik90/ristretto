@@ -2,11 +2,13 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <filesystem>
 #include <memory>
 #include <string>
 
 #include "KaldiInterface.hpp"
 #include "TestUtils.hpp"
+#include "Utils.hpp"
 
 // @test 6 chars should be condensed into 3 int16 elements
 TEST(DeserializeTest, SizeDecreased) {
@@ -118,5 +120,28 @@ TEST(DeserializeTest, ConvertValidValuesSigned) {
 
   for (auto i = 0; i < expectedOutput.Dim(); ++i) {
     ASSERT_EQ(expectedOutput(i), output(i));
+  }
+}
+
+TEST(JsonTest, ConvertArgs) {
+  std::filesystem::path serverConfig("./test/resources/testServerConfig.json");
+
+  mik::KaldiCommandLineArgs cmdLineArgs(serverConfig);
+
+  ASSERT_EQ(cmdLineArgs.getArgCount(), 14);
+
+  // Should be the same as the arg count
+  const auto argvAsStrings = cmdLineArgs.getUnderlyingStrings();
+  ASSERT_EQ(argvAsStrings.size(), 14);
+
+  char* const* curArgV = cmdLineArgs.getArgValues();
+  auto it = argvAsStrings.cbegin();
+
+  for (int i = 0; i < 13; ++i) {
+    ASSERT_NE(curArgV, nullptr) << "curArgV[" << i << "] is null!";
+    ASSERT_NE(*curArgV, nullptr) << "*curArgV[" << i << "] is null!";
+    ASSERT_EQ(std::string(*curArgV), *it);
+    curArgV++;
+    it++;
   }
 }

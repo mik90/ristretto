@@ -59,6 +59,7 @@ target_link_libraries(RistrettoServerLib PUBLIC
     # Libs from conan
     CONAN_PKG::fmt
     CONAN_PKG::spdlog
+    CONAN_PKG::nlohmann_json
 
     # Kaldi and OpenFST
     # These targets are not exposed under a namespace

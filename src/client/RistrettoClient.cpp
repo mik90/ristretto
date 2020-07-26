@@ -34,8 +34,8 @@ std::string generateSessionToken() {
 /**
  * RistrettoClient::RistrettoClient
  */
-RistrettoClient::RistrettoClient(std::shared_ptr<grpc::Channel> channel, const AlsaConfig& config)
-    : stub_(RistrettoProto::Decoder::NewStub(channel)), config_(config), alsa_(config_) {
+RistrettoClient::RistrettoClient(const std::shared_ptr<grpc::Channel>& channel, AlsaConfig config)
+    : stub_(RistrettoProto::Decoder::NewStub(channel)), config_(std::move(config)), alsa_(config_) {
   SPDLOG_INFO("Constructed RistrettoClient");
 
   sessionToken_ = generateSessionToken();
@@ -134,7 +134,7 @@ void RistrettoClient::decodeMicrophoneInput() {
   std::thread timeoutThread;
   if (recordingTimeout_.count() > 0) {
     timeoutThread = std::thread(
-        [&recordingTimeout_ = recordingTimeout_, &continueRecording_ = continueRecording_] {
+        [& recordingTimeout_ = recordingTimeout_, &continueRecording_ = continueRecording_] {
           SPDLOG_INFO("Recording will end after {} milliseconds", recordingTimeout_.count());
           std::this_thread::sleep_for(recordingTimeout_);
           SPDLOG_INFO("Timeout hit, ending recording...");
@@ -159,7 +159,7 @@ void RistrettoClient::decodeMicrophoneInput() {
     }
 
     // This will be deallocated by the completion queue handler (RistrettoClient::renderResults)
-    ClientCallData* call = new ClientCallData;
+    auto call = new ClientCallData;
 
     call->responseReader =
         stub_->PrepareAsyncDecodeAudio(&call->context, audioData, &resultCompletionQ_);

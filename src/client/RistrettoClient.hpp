@@ -11,7 +11,7 @@
 #include "AlsaInterface.hpp"
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wuseless-cast"
+#pragma GCC diagnostic ignored "-Wuseless-cast" // NOLINT Clang-tidy is not aware of the warning
 #include "ristretto.grpc.pb.h"
 #pragma GCC diagnostic pop
 
@@ -19,8 +19,8 @@ namespace mik {
 
 class RistrettoClient {
 public:
-  explicit RistrettoClient(std::shared_ptr<grpc::Channel> channel,
-                           const AlsaConfig& config = AlsaConfig());
+  explicit RistrettoClient(const std::shared_ptr<grpc::Channel>& channel,
+                           AlsaConfig config = AlsaConfig());
   std::string decodeAudioSync(const std::vector<char>& audio, unsigned int audioId = 0);
   void decodeMicrophoneInput();
   void setRecordingDuration(std::chrono::milliseconds milliseconds) {

@@ -15,7 +15,7 @@ namespace mik {
  * AlsaInterface::startRecording
  */
 void AlsaInterface::startRecording() {
-  // Create the thread objec which will start off the recording
+  // Creates the std::thread which will start off the recording
   shouldRecord_ = true;
   recordingThread_ = std::thread(&AlsaInterface::record, this);
   SPDLOG_INFO("Recording started.");
@@ -184,15 +184,15 @@ void AlsaInterface::captureAudioFixedSizeMs(std::ostream& outputStream, unsigned
 
   auto startTime = std::chrono::steady_clock::now();
 
-  // The output stream wants this to be a char instead of uint_8, just make it a char
-  auto cBuffer = std::make_unique<char[]>(config_.periodSizeBytes);
+  std::vector<char> audioBuffer(config_.periodSizeBytes);
+  audioBuffer.resize(config_.periodSizeBytes);
 
   SPDLOG_INFO("Running {} recording iterations", loopsLeft);
   SPDLOG_INFO("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
 
   while (loopsLeft > 0) {
     --loopsLeft;
-    auto status = snd_pcm_readi(pcmHandle_.get(), cBuffer.get(), config_.frames);
+    auto status = snd_pcm_readi(pcmHandle_.get(), audioBuffer.data(), config_.frames);
     if (status == -EPIPE) {
       // Overran the buffer
       SPDLOG_WARN("Overran buffer, received EPIPE. Will continue");
@@ -207,7 +207,7 @@ void AlsaInterface::captureAudioFixedSizeMs(std::ostream& outputStream, unsigned
       continue;
     }
 
-    outputStream.write(cBuffer.get(), static_cast<std::streamsize>(config_.periodSizeBytes));
+    outputStream.write(audioBuffer.data(), static_cast<std::streamsize>(audioBuffer.size()));
   }
 
   auto endTime = std::chrono::steady_clock::now();

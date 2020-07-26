@@ -9,17 +9,20 @@
 static constexpr auto Usage =
     R"(RistrettoClient - Automatic Speech Recognition client
 
-    Usage: RistrettoClient [--file <audio_file>] [--client <client_addr>] [--server <server_addr>] [--timeout <timeout_sec>]
+    Usage: RistrettoClient [--file <audio_file>] [--server <server_addr>] [--timeout <timeout_sec>]
 
     Options:
           -h, --help     Show this screen.
           -v, --version  Show the version.
           --file <audio_file>  pre-recorded audio file to send
           --timeout <timeout_sec>  how long to record for (in seconds)
-          --client <client_addr>  ip and port to bind to  [default: 0.0.0.0:5050]
           --server <server_addr>  ip and port of server   [default: 0.0.0.0:5050]
 )";
 
+/**
+ * printDocoptOutput()
+ * @brief Only used for debugging docopt
+ */
 void printDocoptOutput(const std::map<std::string, docopt::value>& args) {
   fmt::print("--------\ndocopt output:\n");
   for (auto const& arg : args) {

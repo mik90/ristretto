@@ -92,24 +92,24 @@ public:
   Status updateConfiguration(const AlsaConfig& alsaConfig);
 
   Status configureInterface();
-  const AlsaConfig& getConfiguration() const noexcept { return config_; }
-  inline bool isConfiguredForPlayback() const noexcept {
+  [[nodiscard]] const AlsaConfig& getConfiguration() const noexcept { return config_; }
+  [[nodiscard]] bool isConfiguredForPlayback() const noexcept {
     return config_.streamConfig == StreamConfig::PLAYBACK;
   }
-  inline bool isConfiguredForCapture() const noexcept {
+  [[nodiscard]] bool isConfiguredForCapture() const noexcept {
     return config_.streamConfig == StreamConfig::CAPTURE;
   }
-  std::unique_ptr<snd_pcm_t, SndPcmDeleter> takePcmHandle() {
+  [[nodiscard]] std::unique_ptr<snd_pcm_t, SndPcmDeleter> takePcmHandle() {
     return std::exchange(pcmHandle_, nullptr);
   }
   void stopRecording();
   void startRecording();
-  size_t audioDataAvailableBytes() const noexcept;
-  std::chrono::milliseconds audioDataAvailableMilliseconds() const noexcept;
+  [[nodiscard]] size_t audioDataAvailableBytes() const noexcept;
+  [[nodiscard]] std::chrono::milliseconds audioDataAvailableMilliseconds() const noexcept;
   std::vector<char> consumeAllAudioData();
   std::vector<char> consumeDurationOfAudioData(std::chrono::milliseconds duration);
-  size_t audioDurationToBytes(std::chrono::milliseconds duration) const noexcept;
-  std::chrono::milliseconds bytesToAudioDuration(size_t size) const noexcept;
+  [[nodiscard]] size_t audioDurationToBytes(std::chrono::milliseconds duration) const noexcept;
+  [[nodiscard]] std::chrono::milliseconds bytesToAudioDuration(size_t size) const noexcept;
 
 protected:
   snd_pcm_t* openSoundDevice(std::string_view pcmDesc, StreamConfig streamConfig);

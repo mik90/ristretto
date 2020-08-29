@@ -1,4 +1,5 @@
 {
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
-    "cmake.configureOnOpen": true
+    "cmake.configureOnOpen": true,
+    "cmake.configureArgs": ["-DBUILD_CLIENT=ON", "-DBUILD_SERVER=OFF", "-DCMAKE_MAKE_PROGRAM=/usr/bin/ninja" ],
 }

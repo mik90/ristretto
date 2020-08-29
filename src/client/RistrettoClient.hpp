@@ -21,6 +21,7 @@ class RistrettoClient {
 public:
   explicit RistrettoClient(const std::shared_ptr<grpc::Channel>& channel,
                            AlsaConfig config = AlsaConfig());
+  ~RistrettoClient();
   std::string decodeAudioSync(const std::vector<char>& audio, unsigned int audioId = 0);
   void decodeMicrophoneInput();
   void setRecordingDuration(std::chrono::milliseconds milliseconds) {

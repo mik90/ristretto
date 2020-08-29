@@ -30,7 +30,7 @@ namespace mik {
 class RistrettoServer {
 public:
   // NOLINTNEXTLINE: Passing command line args to Kaldi
-  explicit RistrettoServer(std::filesystem::path configPath, int argc, const char** argv);
+  explicit RistrettoServer(int argc, const char** argv);
   // There should only be one, ensure that this is not copied
   RistrettoServer(const RistrettoServer&) = delete;
   RistrettoServer(RistrettoServer&&) = delete;
@@ -46,6 +46,7 @@ public:
                                         std::unique_ptr<std::string> audioDataPtr);
 
 private:
+  static constexpr std::string_view DefaultServerAddress = "0.0.0.0:5050";
   void updateSessionMap(const std::string& sessionToken);
 
   void handleRpcs();
@@ -56,8 +57,6 @@ private:
   std::mutex sessionMapMutex_;
   /// @brief SessionToken mapped to Nnet3Data
   std::map<std::string, mik::Nnet3Data> sessionMap_;
-
-  std::filesystem::path configFile_;
 
   // Kaldi cmd line args
   const int argc_;    // NOLINT: Passing command line args to Kaldi

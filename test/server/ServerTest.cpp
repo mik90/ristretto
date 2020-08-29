@@ -122,26 +122,3 @@ TEST(DeserializeTest, ConvertValidValuesSigned) {
     ASSERT_EQ(expectedOutput(i), output(i));
   }
 }
-
-TEST(JsonTest, ConvertArgs) {
-  std::filesystem::path serverConfig("./test/resources/testServerConfig.json");
-
-  mik::KaldiCommandLineArgs cmdLineArgs(serverConfig);
-
-  ASSERT_EQ(cmdLineArgs.getArgCount(), 14);
-
-  // Should be the same as the arg count
-  const auto argvAsStrings = cmdLineArgs.getUnderlyingStrings();
-  ASSERT_EQ(argvAsStrings.size(), 14);
-
-  char* const* curArgV = cmdLineArgs.getArgValues();
-  auto it = argvAsStrings.cbegin();
-
-  for (int i = 0; i < 13; ++i) {
-    ASSERT_NE(curArgV, nullptr) << "curArgV[" << i << "] is null!";
-    ASSERT_NE(*curArgV, nullptr) << "*curArgV[" << i << "] is null!";
-    ASSERT_EQ(std::string(*curArgV), *it);
-    curArgV++;
-    it++;
-  }
-}

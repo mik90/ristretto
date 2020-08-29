@@ -43,6 +43,14 @@ RistrettoClient::RistrettoClient(const std::shared_ptr<grpc::Channel>& channel, 
 }
 
 /**
+ * RistrettoClient::~RistrettoClient
+ */
+RistrettoClient::~RistrettoClient() {
+  SPDLOG_INFO("Destroying RistrettoClient");
+  stub_.reset();
+}
+
+/**
  * RistrettoClient::recordAudioChunks
  * @brief Starts recording and saves the audio in the input queue as protobuf objects
  */
@@ -134,7 +142,7 @@ void RistrettoClient::decodeMicrophoneInput() {
   std::thread timeoutThread;
   if (recordingTimeout_.count() > 0) {
     timeoutThread = std::thread(
-        [& recordingTimeout_ = recordingTimeout_, &continueRecording_ = continueRecording_] {
+        [&recordingTimeout_ = recordingTimeout_, &continueRecording_ = continueRecording_] {
           SPDLOG_INFO("Recording will end after {} milliseconds", recordingTimeout_.count());
           std::this_thread::sleep_for(recordingTimeout_);
           SPDLOG_INFO("Timeout hit, ending recording...");
@@ -150,8 +158,10 @@ void RistrettoClient::decodeMicrophoneInput() {
     {
       while (audioInputQ_.empty()) {
         // It's possible that there's no audio to send yet, so wait for some to be recorded
-        SPDLOG_WARN("Audio input queue is empty, waiting before checking it again");
-        std::this_thread::sleep_for(chunkDuration_ + chunkDuration_);
+        const auto timeToWait = chunkDuration_ * 3;
+        SPDLOG_WARN("Audio input queue is empty, waiting for {} ms before checking it again",
+                    timeToWait.count());
+        std::this_thread::sleep_for(timeToWait);
       }
       std::lock_guard<std::mutex> lock(audioInputMutex_);
       std::swap(audioData, audioInputQ_.back());
@@ -251,7 +261,7 @@ std::string filterResult(const std::string& fullResult) {
   }
 
   const std::string filteredText(startOfText.base(), endOfText.base());
-  SPDLOG_INFO("Filtered:{}", filteredText);
+  SPDLOG_INFO("Filtered: {}", filteredText);
   return filteredText;
 }
 

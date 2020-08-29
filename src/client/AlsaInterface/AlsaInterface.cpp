@@ -20,6 +20,7 @@ AlsaInterface::AlsaInterface(const AlsaConfig& alsaConfig) : config_(alsaConfig)
 AlsaInterface::~AlsaInterface() {
   SPDLOG_INFO("Destroying AlsaInterface...");
   this->stopRecording();
+  pcmHandle_.reset();
   SPDLOG_INFO("Done destroying AlsaInterface");
 }
 
@@ -33,7 +34,7 @@ snd_pcm_t* AlsaInterface::openSoundDevice(std::string_view pcmDesc, StreamConfig
     return nullptr;
   }
   const std::string iface = (streamDir == StreamConfig::CAPTURE) ? "CAPTURE" : "PLAYBACK";
-  SPDLOG_INFO("Configured interface \'{}\' for {}", pcmDesc, iface);
+  SPDLOG_INFO("Configured interface \"{}\" for {}", pcmDesc, iface);
   return pcmHandle;
 }
 

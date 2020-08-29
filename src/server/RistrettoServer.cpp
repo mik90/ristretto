@@ -16,9 +16,8 @@ const std::string firstSessionToken = "firstSession";
  * RistrettoServer::RistrettoServer
  */
 // NOLINTNEXTLINE: Passing command line args to Kaldi
-RistrettoServer::RistrettoServer(std::filesystem::path configPath, int argc, const char** argv)
-    : sessionMapMutex_(), sessionMap_(), configFile_(std::move(configPath)), argc_(argc),
-      argv_(argv) {
+RistrettoServer::RistrettoServer(int argc, const char** argv)
+    : sessionMapMutex_(), sessionMap_(), argc_(argc), argv_(argv) {
 
   SPDLOG_INFO("Inserting firstSessionToken placeholder");
   // Create an Nnet3Data in anticipation of a session
@@ -48,11 +47,11 @@ void RistrettoServer::updateSessionMap(const std::string& sessionToken) {
 
   } else if (isCurrentSessionFound) {
     // Session is found in the map
-    SPDLOG_INFO("Found session token {} in sessionMap_!", sessionToken);
+    SPDLOG_INFO("Found session token \"{}\" in sessionMap", sessionToken);
 
   } else if (!isCurrentSessionFound) {
     // Session is not found, add it
-    SPDLOG_INFO("First appearance of session token {}", sessionToken);
+    SPDLOG_INFO("First appearance of session token \"{}\"", sessionToken);
     sessionMap_.emplace(std::piecewise_construct, std::forward_as_tuple(sessionToken),
                         std::forward_as_tuple(argc_, argv_));
   }
@@ -65,7 +64,7 @@ std::string RistrettoServer::decodeAudio(const std::string& sessionToken, uint32
 
   // Note: I tried just deferencing with sessionMap_[sessionToken].decodeAudio() but that somehow
   // compiled into a copy
-  auto sessionIt = sessionMap_.find(sessionToken);
+  const auto sessionIt = sessionMap_.find(sessionToken);
   return sessionIt->second.decodeAudio(sessionToken, audioId, std::move(audioDataPtr));
 }
 /**
@@ -82,13 +81,7 @@ RistrettoServer::~RistrettoServer() {
 void RistrettoServer::run() {
   SPDLOG_DEBUG("run() start");
 
-  std::string serverAddress;
-  {
-    std::fstream inputStream(configFile_, std::ios_base::in);
-    const auto configJsonObject = nlohmann::json::parse(inputStream);
-    const auto ipAndPortObj = configJsonObject["serverParameters"]["ipAndPort"];
-    serverAddress = ipAndPortObj["value"];
-  }
+  const auto serverAddress = static_cast<std::string>(DefaultServerAddress);
 
   grpc::ServerBuilder builder;
   builder.AddListeningPort(serverAddress, grpc::InsecureServerCredentials());

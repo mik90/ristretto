@@ -12,7 +12,7 @@ run_build()
     echo "Running clientEntry.sh::run_build()"
     cd build
     cmake .. -DBUILD_SERVER=OFF -DBUILD_CLIENT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -G Ninja
-    cmake --build . --target RistrettoClient --parallel $(nproc)
+    cmake --build . --target RistrettoClient ClientTest --parallel $(nproc)
     cd -
 }
 
@@ -33,7 +33,7 @@ run_tests()
 start_client()
 {
     echo "Running clientEntry.sh::start_client()"
-    ./build/bin/RistrettoClient
+    ./build/bin/RistrettoClient --file ./test/resources/ClientTestAudio8KHz.raw
 }
 
 main()
@@ -42,15 +42,13 @@ main()
         echo "Expected to be in the ristretto dir, exiting..."
         exit 1
     fi
-    if [ "$SKIP_PROTOC" != "YES" ]; then
-        run_protoc
-    fi
+
     if [ "$SKIP_BUILD" != "YES" ]; then
+        run_protoc
         run_build
-    fi
-    if [ "$SKIP_TESTS" != "YES" ]; then
         run_tests
     fi
+
     if [ "$SKIP_RUN" != "YES" ]; then
         start_client
     fi

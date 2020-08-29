@@ -42,7 +42,6 @@ RUN apt-get update && \
   && ln -s /usr/bin/python2.7 /usr/bin/python \
   && rm -rf /var/lib/apt/lists/*
 
-
 # Build kaldi with cmake
 # - When using vscode, can add a kaldi/.vscode/settings.json that updates the cmake.configureSettings
 #   so that the CMAKE_LIBRARY_PATH is adjusted correctly
@@ -55,18 +54,19 @@ RUN git clone --depth 1 https://github.com/kaldi-asr/kaldi.git /opt/kaldi \
   && cmake .. -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs \
               -DCMAKE_INSTALL_PREFIX=/usr \
               -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  && cmake --build . --target install --parallel $(nproc) \
-  && cmake --build . --target clean --parallel $(nproc) \
+  && cmake --build . --target install --parallel 1 \
+  && cmake --build . --target clean --parallel 1 \
   && cd openfst \
   && ./configure --prefix=/usr \
-  && make install -j $(nproc) \
-  && make clean -j $(nproc)
+  && make install -j 1 \
+  && make clean -j 1
 
 # Clean up the cache
 RUN rm -rf /var/lib/apt/lists/*
 
 # -------------------------------------------------------
 FROM kaldi-ubuntu18.04 as buildenv
+#FROM kaldi-ubuntu18.04 as buildenv
 WORKDIR /opt/ristretto
 
 # Set up the ristretto build environment
@@ -95,10 +95,10 @@ RUN git clone --depth 1 -b ${GRPC_RELEASE_TAG} https://github.com/grpc/grpc /opt
   && cd /opt/grpc \
   && git submodule update --init --recursive --depth 1
 
-RUN cd /opt/grpc && make -j $(nproc) && make install && make clean \
+RUN cd /opt/grpc && make -j 1 && make install && make clean \
   && mkdir build && cd build \
   && cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/ \
-  && cmake --build . --target install --parallel $(nproc) \
+  && cmake --build . --target install --parallel 1 \
   && cmake --build . --target clean \
   && ldconfig
 

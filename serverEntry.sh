@@ -59,7 +59,7 @@ start_server()
     --extra-left-context-initial=0 --frame-subsampling-factor=3 --config=${CONFIG} \
     --min-active=200 --max-active=7000 \
     --beam=15.0 --lattice-beam=6.0 --acoustic-scale=1.0 \
-    --port-num=5050 ${MODEL} ${HCLG} ${WORDS}"
+     ${MODEL} ${HCLG} ${WORDS}"
 
     pushd /opt/ristretto
 

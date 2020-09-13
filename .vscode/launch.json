@@ -75,7 +75,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/ClientTest",
-            "args": ["--gtest_filter=*CaptureAudio_Vector"],
+            "args": ["--gtest_filter=*"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [ ],

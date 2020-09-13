@@ -19,6 +19,12 @@ TEST(UtilTest, ReadInAudioFile) {
 TEST(AlsaTest, CaptureAudio_Stream) {
 
   std::filesystem::path outputPath = "test/resources/unittestCapture.raw";
+  if (std::filesystem::directory_entry(outputPath).exists()) {
+    // Clean up
+    SPDLOG_INFO("Removing {} since it already exists", static_cast<std::string>(outputPath));
+    std::filesystem::remove(outputPath);
+  }
+
   mik::AlsaConfig config;
   mik::AlsaInterface alsa(config);
 
@@ -30,9 +36,6 @@ TEST(AlsaTest, CaptureAudio_Stream) {
   outputStream.flush();
 
   EXPECT_GT(std::filesystem::file_size(outputPath), 0);
-
-  // Clean up
-  std::filesystem::remove(outputPath);
 }
 
 TEST(AlsaTest, CaptureAudio_Vector) {

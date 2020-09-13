@@ -70,7 +70,7 @@ public:
   void setAudioData(const std::vector<char>& v) { audioData_ = v; }
 };
 
-TEST(AlsaTest, consumeAllAudio) {
+TEST(AlsaTest, ConsumeAllAudio) {
   // Default init 100 chars
   const std::vector<char> internalAudioData(100);
   mik::AlsaConfig config;
@@ -81,7 +81,7 @@ TEST(AlsaTest, consumeAllAudio) {
   ASSERT_EQ(internalAudioData.size(), audioData.size());
 }
 
-TEST(AlsaTest, consumeDurationOfAudio_10ms) {
+TEST(AlsaTest, ConsumeDurationOfAudio_10ms) {
   // Create large vector of default-initialized data
   const std::vector<char> internalAudioData(2048);
   mik::AlsaConfig config;
@@ -93,7 +93,7 @@ TEST(AlsaTest, consumeDurationOfAudio_10ms) {
   ASSERT_EQ(256, audioData.size());
 }
 
-TEST(AlsaTest, consumeDurationOfAudio_LargeRequest) {
+TEST(AlsaTest, ConsumeDurationOfAudio_LargeRequest) {
   const std::vector<char> internalAudioData(5000);
   mik::AlsaConfig config;
   MockAlsaInterface alsa(config);
@@ -104,7 +104,7 @@ TEST(AlsaTest, consumeDurationOfAudio_LargeRequest) {
   ASSERT_EQ(internalAudioData.size(), audioData.size());
 }
 
-TEST(AlsaTest, calcAudioDurationAndSize) {
+TEST(AlsaTest, CalcAudioDurationAndSize) {
   MockAlsaInterface alsa;
   const auto singlePeriodSize = alsa.getConfiguration().periodSizeBytes;
   const auto singlePeriodDuration =

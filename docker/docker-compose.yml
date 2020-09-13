@@ -51,7 +51,7 @@ services:
 
     server:
         # Requires a computer with CUDA support
-        entrypoint: bash # Interactive
+        #entrypoint: bash # Interactive
         image: mik90/ristretto:server-latest
         #ports:
         #    - 5050:5050

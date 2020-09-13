@@ -58,7 +58,7 @@
             "args": ["--file=./test/resources/ClientTestAudio8KHz.raw"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
+            "environment": [ ],
             "externalConsole": false,
             "MIMode": "gdb",
             "setupCommands": [

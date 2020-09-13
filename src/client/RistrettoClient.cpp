@@ -3,8 +3,6 @@
 #include <future>
 #include <iostream>
 
-#include <uuid/uuid.h>
-
 #include <fmt/core.h>
 #include <fmt/locale.h>
 #include <grpc/support/log.h>
@@ -17,28 +15,13 @@
 namespace mik {
 
 /**
- * generateSessionToken
- * @brief Generates an upper-case random token using the operating system's UUID library
- */
-std::string generateSessionToken() {
-  uuid_t uuidBinary;
-  uuid_generate_random(uuidBinary);
-  constexpr size_t uuidSize = sizeof(uuid_t);
-
-  std::string token(uuidSize, '0');
-  // Write the UUID binary data into the std::string
-  uuid_unparse_upper(uuidBinary, token.data());
-  return token;
-}
-
-/**
  * RistrettoClient::RistrettoClient
  */
 RistrettoClient::RistrettoClient(const std::shared_ptr<grpc::Channel>& channel, AlsaConfig config)
     : stub_(RistrettoProto::Decoder::NewStub(channel)), config_(std::move(config)), alsa_(config_) {
   SPDLOG_INFO("Constructed RistrettoClient");
 
-  sessionToken_ = generateSessionToken();
+  sessionToken_ = Utils::generateSessionToken();
   SPDLOG_INFO("Created session token \"{}\"", sessionToken_);
 }
 
@@ -260,7 +243,7 @@ std::string filterResult(const std::string& fullResult) {
     return std::string{};
   }
 
-  const std::string filteredText(startOfText.base(), endOfText.base());
+  std::string filteredText(startOfText.base(), endOfText.base());
   SPDLOG_INFO("Filtered: {}", filteredText);
   return filteredText;
 }

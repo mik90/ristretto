@@ -7,11 +7,24 @@
 #include <iostream>
 #include <iterator>
 
+#include <uuid/uuid.h>
+
 #include "Utils.hpp"
 
 namespace mik {
 
-size_t findSizeOfFileStream(std::istream& str) {
+std::string Utils::generateSessionToken() {
+  uuid_t uuidBinary;
+  uuid_generate_random(uuidBinary);
+  constexpr size_t uuidSize = sizeof(uuid_t);
+
+  std::string token(uuidSize, '0');
+  // Write the UUID binary data into the std::string
+  uuid_unparse_upper(uuidBinary, token.data());
+  return token;
+}
+
+static size_t findSizeOfFileStream(std::istream& str) {
   const auto originalPos = str.tellg();    // Find current pos
   str.seekg(0, str.end);                   // Go back to start
   const std::streampos size = str.tellg(); // Find size

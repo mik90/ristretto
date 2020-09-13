@@ -40,13 +40,15 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   const auto serverAddr = args[std::string("--server")].asString();
   fmt::print("Server address: {}\n", serverAddr);
   SPDLOG_INFO("Server address: {}", serverAddr);
-  auto channel = grpc::CreateChannel(serverAddr, grpc::InsecureChannelCredentials());
 
-  mik::RistrettoClient client(channel);
+  mik::RistrettoClient client(grpc::CreateChannel(serverAddr, grpc::InsecureChannelCredentials()));
   fmt::print("Client started\n");
 
-  const auto audioFile = args[std::string("--file")];
+  // ######################################################
+  return 0; // FOR TESTING RistrettoClient destructor
+            // ######################################################
   try {
+    const auto audioFile = args[std::string("--file")];
     if (audioFile) {
       // Take in audio file as input
       fmt::print("Processing audio file {}\n", audioFile.asString());
@@ -78,6 +80,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
       fmt::print("Processing microphone input\n");
       client.decodeMicrophoneInput();
     }
+
   } catch (const std::exception& e) {
     SPDLOG_ERROR("Caught std::exception: {}", e.what());
     fmt::print("Caught std::exception: {}\n exiting...", e.what());
@@ -87,6 +90,5 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
     fmt::print("Caught unknown exception\n exiting...");
     return 1;
   }
-
   return 0;
 }

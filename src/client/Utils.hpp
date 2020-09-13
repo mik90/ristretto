@@ -21,6 +21,11 @@ public:
   static unsigned int millisecondsToMicroseconds(unsigned int milliseconds);
 
   static unsigned int microsecondsToSeconds(unsigned int microseconds);
+  /**
+   * generateSessionToken
+   * @brief Generates an upper-case random token using the operating system's UUID library
+   */
+  static std::string generateSessionToken();
 };
 
 } // namespace mik

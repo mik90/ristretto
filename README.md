@@ -1,9 +1,13 @@
-![Ristretto CI](https://github.com/mik90/ristretto/workflows/Ristretto%20CI/badge.svg)
-
 ## Ristretto
 Client/Server programs for online decoding using Kaldi's nnet3 decoder. Uses the fisher-english data set.
 Both the client and server have Dockerfiles and there is a docker-compomse that mounts volumes on the current repository for quick changes. 
 Client/Server communication is done with gRPC. As a note, this is nowhere near done.
+
+------------------------
+## Issues
+- With gRPC 1.28, there was mysterious crashing on Stub destruction. Upgrading to 1.32 introduced errors with misaligned memory allocation
+    - This blocks me from development as I was trying to get past this and then be done...
+- Taking yet another long break from this
 
 ------------------------
 ## Setup
@@ -26,7 +30,6 @@ Client/Server communication is done with gRPC. As a note, this is nowhere near d
 
 ------------------------
 ## TODO
-- The data wasn't being deserialized correctly on the Ristretto end
 - Chunk data on the client end
 - Try out TLS/SSL
 - The nnet3 API is made thread-safe by a single mutex at the start, not neat but hopefully it works

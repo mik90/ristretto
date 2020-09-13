@@ -44,7 +44,6 @@ RUN apt-get update && \
 
 # Build kaldi with cmake
 # - When using vscode, can add a kaldi/.vscode/settings.json that updates the cmake.configureSettings
-<<<<<<< HEAD
 #   so that the CMAKE_LIBRARY_PATH is adjusted correctly
 # - Kaldi will not build with GCC-9 , just use the system's GCC-7
 # - Kaldi does not build the OpenFST binaries like fstarcsort so that has to be
@@ -61,30 +60,6 @@ RUN git clone --depth 1 https://github.com/kaldi-asr/kaldi.git /opt/kaldi \
   && ./configure --prefix=/usr \
   && make install -j 1 \
   && make clean -j 1
-=======
-# - Kaldi will not build with GCC-9 requires use with 5.4
-#   - Are GCC 9 and 5.4 even ABI compatible?
-# - Kaldi defaults to OpenBLAS in CMake, so that requires an additiona package
-# Build Kaldi with the newer cmake
-# Install to /opt/kaldi/dist
-# TODO Append /opt/kaldi/dist/bin to PATH so that the kaldi scripts can find it
-#      I should be able to avoid building with the makefiles once that's done
-RUN git clone --depth 1 https://github.com/kaldi-asr/kaldi.git /opt/kaldi && \
-  cd /opt/kaldi && \
-  cd /opt/kaldi/tools && \
-  ./extras/install_mkl.sh && \
-  make -j $(nproc) && \
-  cd /opt/kaldi/src && \
-  ./configure --shared --use-cuda && \
-  make depend -j $(nproc) && \
-  make -j $(nproc) && \
-  mkdir /opt/kaldi/build && \
-  cd /opt/kaldi/build && \
-  cmake .. -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs \
-  -DCMAKE_INSTALL_PREFIX=../dist \
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  && cmake --build . --parallel $(nproc) --target install
->>>>>>> master
 
 # Clean up the cache
 RUN rm -rf /var/lib/apt/lists/*

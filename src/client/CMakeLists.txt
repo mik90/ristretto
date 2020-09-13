@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 
 if (EXISTS ${THIRD_PARTY_USR_DIR})
   # Prefer package in here, they're newer
@@ -15,18 +14,12 @@ endif()
   
 find_package(Threads REQUIRED)
 
-=======
->>>>>>> master
 add_subdirectory(AlsaInterface)
 
 if (BUILD_KALDI_TCP_CLIENT)
     add_subdirectory(TcpClient)
 endif()
 
-<<<<<<< HEAD
-
-=======
->>>>>>> master
 add_library(protoObjects OBJECT
     ${ristretto_proto_srcs}
     ${ristretto_grpc_srcs}
@@ -38,7 +31,6 @@ target_link_libraries(protoObjects PUBLIC
     gRPC::gpr
 )
 
-<<<<<<< HEAD
 add_library(RistrettoClientLib
   RistrettoClient.cpp
   Utils.cpp
@@ -54,19 +46,6 @@ target_include_directories(RistrettoClientLib PUBLIC
 )
 
 target_link_libraries(RistrettoClientLib PUBLIC
-=======
-add_library(RistrettoClientCore
-  RistrettoClient.cpp
-  Utils.cpp
-)
-
-target_include_directories(RistrettoClientCore PUBLIC
-  "${CMAKE_BINARY_DIR}/src"
-  AlsaInterface
-)
-
-target_link_libraries(RistrettoClientCore PUBLIC
->>>>>>> master
     # Generated files trigger warnings, compiled them separately
     protoObjects
 
@@ -80,7 +59,6 @@ target_link_libraries(RistrettoClientCore PUBLIC
     # Conan packages
     CONAN_PKG::fmt
     CONAN_PKG::spdlog
-<<<<<<< HEAD
     CONAN_PKG::docopt.cpp
 
     # Locally built gRPC/protobuf
@@ -90,12 +68,6 @@ target_link_libraries(RistrettoClientCore PUBLIC
     
     # System-included uuid lib
     uuid
-=======
-    # System-included gRPC/protobuf
-    protobuf
-    grpc++_unsecure
-    gpr
->>>>>>> master
 )
 
 add_executable(RistrettoClient
@@ -103,9 +75,5 @@ add_executable(RistrettoClient
 )
 
 target_link_libraries(RistrettoClient
-<<<<<<< HEAD
   RistrettoClientLib
-=======
-  RistrettoClientCore
->>>>>>> master
 )

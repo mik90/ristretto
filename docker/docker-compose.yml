@@ -1,10 +1,7 @@
 version: "3.7"
 services:
     client-ci:
-<<<<<<< HEAD
         # For use in CI
-=======
->>>>>>> master
         image: mik90/ristretto:client-latest
         network_mode: host
         cap_add:
@@ -14,7 +11,6 @@ services:
             - ../:/opt/ristretto
             - ../caches/client_conan_cache:/root/.conan/data
             # Exclusions:
-<<<<<<< HEAD
             #   Build folder
             - /opt/ristretto/build/
             #   server's build caches
@@ -23,16 +19,6 @@ services:
             - /opt/ristretto/caches/server_conan_cache/
 
 
-=======
-            # Build folder
-            - /opt/ristretto/build/
-            # This dir
-            - /opt/ristretto/docker/
-            # server's build caches
-            - /opt/ristretto/caches/server_vscode/
-            - /opt/ristretto/caches/server_build_cache/
-            - /opt/ristretto/caches/server_conan_cache/
->>>>>>> master
     client:
         # For use in development
         entrypoint: ash # Interactive

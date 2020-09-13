@@ -6,12 +6,8 @@
 #include "RistrettoServer.hpp"
 #include "Utils.hpp"
 
-<<<<<<< HEAD
 int main(int argc, const char** argv) {
 
-=======
-int main(int argc, char* argv[]) {
->>>>>>> master
   mik::Utils::createLogger();
   fmt::print("Created logger\n");
 

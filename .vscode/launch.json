@@ -6,11 +6,7 @@
     "configurations": [
 
         {
-<<<<<<< HEAD
             "name": "Kaldi TCP server",
-=======
-            "name": "Kaldi TCP server debug",
->>>>>>> master
             "type": "cppdbg",
             "request": "launch",
             "program": "/opt/kaldi/src/online2bin/online2-tcp-nnet3-decode-faster",
@@ -33,11 +29,7 @@
             ]
         },
         {
-<<<<<<< HEAD
             "name": "Server",
-=======
-            "name": "RistrettoServer debug",
->>>>>>> master
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/RistrettoServer",
@@ -58,7 +50,6 @@
                     "ignoreFailures": true
                 }
             ]
-<<<<<<< HEAD
         },
         {
             "name": "Client w/ audio file",
@@ -97,8 +88,6 @@
                     "ignoreFailures": true
                 }
             ]
-=======
->>>>>>> master
         }
     ]
 }

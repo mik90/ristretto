@@ -1,0 +1,28 @@
+{
+  "version": "0.1",
+  "title": "Ristretto server configuration",
+  "description": "Config values for Ristretto. Kaldi values are converted to JSON here but not actually used",
+  "serverParameters": [
+    {
+      "ipAndPort": {
+        "type": "string",
+        "value": "0.0.0.0:5050" }
+    }
+  ],
+  "kaldiCommandLineArgs": [
+      "--verbose=1",
+      "--frames-per-chunk=20",
+      "--extra-left-context-initial=0",
+      "--frame-subsampling-factor=3",
+      "--config=/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/conf/online.conf",
+      "--min-active=200",
+      "--max-active=7000",
+      "--beam=15.0",
+      "--lattice-beam=6.0",
+      "--acoustic-scale=1.0",
+      "/opt/kaldi/egs/aspire/s5/exp/chain/tdnn_7b/final.mdl", 
+      "/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/HCLG.fst",
+      "/opt/kaldi/egs/aspire/s5/exp/tdnn_7b_chain_online/graph_pp/words.txt"
+  ]
+
+}

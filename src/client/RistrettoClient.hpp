@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
+#include <queue>
 #include <string>
 #include <string_view>
 
@@ -9,23 +11,57 @@
 #include "AlsaInterface.hpp"
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wuseless-cast"
+#pragma GCC diagnostic ignored "-Wuseless-cast" // NOLINT Clang-tidy is not aware of the warning
 #include "ristretto.grpc.pb.h"
 #pragma GCC diagnostic pop
 
 namespace mik {
-// Used for sending audio to the Kaldi online2-tcp-nnet3-decode-faster server
-// Given a stream of audio, send it over TCP
-
-std::string filterResult(const std::string& fullResult);
 
 class RistrettoClient {
 public:
-  explicit RistrettoClient(std::shared_ptr<grpc::Channel> channel);
-  std::string decodeAudio(const std::vector<char>& audio);
+  explicit RistrettoClient(const std::shared_ptr<grpc::Channel>& channel,
+                           AlsaConfig config = AlsaConfig());
+  std::string decodeAudioSync(const std::vector<char>& audio, unsigned int audioId = 0);
+  void decodeMicrophoneInput();
+  void setRecordingDuration(std::chrono::milliseconds milliseconds) {
+    this->recordingTimeout_ = milliseconds;
+  };
 
 private:
-  std::unique_ptr<ristretto::Decoder::Stub> stub_;
+  void recordAudioChunks();
+  void renderResults();
+  std::chrono::milliseconds chunkDuration_ = std::chrono::milliseconds(1000);
+
+  std::string sessionToken_;
+
+  /// @brief Stores captured audio in preparation for sending
+  std::queue<RistrettoProto::AudioData> audioInputQ_;
+  /// @brief Used for modifying the audioInputQ
+  std::mutex audioInputMutex_;
+
+  /// @brief This is thread safe according to https://github.com/grpc/grpc/issues/4486
+  grpc::CompletionQueue resultCompletionQ_;
+
+  std::unique_ptr<RistrettoProto::Decoder::Stub> stub_;
+
+  std::atomic<bool> continueRecording_ = false;
+  /// @brief Do not limit the recording duration if the timeout is 0
+  std::chrono::milliseconds recordingTimeout_ = std::chrono::milliseconds(0);
+
+  AlsaConfig config_;
+  AlsaInterface alsa_;
 };
+
+struct ClientCallData {
+  RistrettoProto::Transcript transcript;
+
+  grpc::ClientContext context;
+
+  grpc::Status status;
+
+  std::unique_ptr<grpc::ClientAsyncResponseReader<RistrettoProto::Transcript>> responseReader;
+};
+
+std::string filterResult(const std::string& fullResult);
 
 } // namespace mik

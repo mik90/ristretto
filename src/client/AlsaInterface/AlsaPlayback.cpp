@@ -8,6 +8,9 @@
 namespace mik {
 
 void AlsaInterface::playbackAudioFixedSize(std::istream& inputStream, unsigned int seconds) {
+  this->playbackAudioFixedSizeMs(inputStream, seconds * 1000);
+}
+void AlsaInterface::playbackAudioFixedSizeMs(std::istream& inputStream, unsigned int milliseconds) {
   SPDLOG_INFO("Starting playback...");
 
   if (!this->isConfiguredForPlayback()) {
@@ -18,7 +21,7 @@ void AlsaInterface::playbackAudioFixedSize(std::istream& inputStream, unsigned i
   }
 
   SPDLOG_INFO("Calculating amount of recording loops...");
-  int loopsLeft = config_.calculateRecordingLoops(Utils::secondsToMicroseconds(seconds));
+  int loopsLeft = config_.calculateRecordingLoops(Utils::millisecondsToMicroseconds(milliseconds));
   SPDLOG_INFO("Will be running {} loops", loopsLeft);
   SPDLOG_INFO("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
 
@@ -28,14 +31,16 @@ void AlsaInterface::playbackAudioFixedSize(std::istream& inputStream, unsigned i
     return;
   }
 
-  auto cBuffer = std::make_unique<char[]>(config_.periodSizeBytes);
+  std::vector<char> audioBuffer(config_.periodSizeBytes);
+  audioBuffer.resize(config_.periodSizeBytes);
+
   SPDLOG_INFO("PCM State: {}", snd_pcm_state_name(snd_pcm_state(pcmHandle_.get())));
 
   while (loopsLeft > 0) {
     --loopsLeft;
 
     // Read in data from the audio file into the buffer
-    inputStream.read(cBuffer.get(), static_cast<std::streamsize>(config_.periodSizeBytes));
+    inputStream.read(audioBuffer.data(), static_cast<std::streamsize>(config_.periodSizeBytes));
 
     const auto bytesRead = inputStream.gcount();
     if (bytesRead == 0) {
@@ -47,7 +52,7 @@ void AlsaInterface::playbackAudioFixedSize(std::istream& inputStream, unsigned i
     }
 
     // Write out a frame of data from the buffer into the soundcard
-    const auto status = snd_pcm_writei(pcmHandle_.get(), cBuffer.get(), config_.frames);
+    const auto status = snd_pcm_writei(pcmHandle_.get(), audioBuffer.data(), config_.frames);
     if (status == -EPIPE) {
       // Overran the buffer
       SPDLOG_WARN("Underrun occured, received EPIPE. Will continue");

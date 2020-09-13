@@ -3,14 +3,15 @@ include(GoogleTest)
 add_executable(ClientTest
  main.cpp
  AlsaTest.cpp
- #ClientTest.cpp # This isn't quite stable yet
+ #ClientTest.cpp # This isn't quite stable yet, requires a server
+ UtilsTest.cpp
 )
 
 target_link_libraries(ClientTest PRIVATE
     project_options
     project_warnings
     AlsaInterface
-    RistrettoClientCore
+    RistrettoClientLib
     CONAN_PKG::gtest
 )
 

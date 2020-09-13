@@ -1,12 +1,20 @@
 syntax = "proto3";
 
-package ristretto;
+package RistrettoProto;
 
 // ============= Service =============
 service Decoder {
   rpc DecodeAudio(AudioData) returns (Transcript) {}
 }
 
-message AudioData { bytes audio = 1; }
+message AudioData {
+   bytes audio = 1;
+   uint32 audioId = 2;
+   string sessionToken = 3;
+}
 
-message Transcript { string text = 1; }
+message Transcript {
+   string text = 1;
+   uint32 audioId = 2;
+   string sessionToken = 3;
+}

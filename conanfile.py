@@ -15,13 +15,9 @@ class RistrettoConan(ConanFile):
         self.requires("docopt.cpp/0.6.2")
         self.requires("fmt/6.2.0")
         self.requires("spdlog/1.5.0")
-        # I was trying to use conan for this instead of the system package manager
-        # However, i couldn't get the recipe to generate the protoc binaries
-        # Seems like stable doesnt add the .cmake to the cmake modules path
-        #self.requires("protobuf/3.9.1")
-        # Not using these anymore
-        #self.requires("boost/1.71.0")
-        #self.requires(""abseil/20200205")
+        self.requires("nlohmann_json/3.8.0")
+        # Any other dependencies are handled by Dockerfiles since both the server
+        # and client are containerized
 
 
     def build(self):

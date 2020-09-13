@@ -2,11 +2,13 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <filesystem>
 #include <memory>
 #include <string>
 
 #include "KaldiInterface.hpp"
 #include "TestUtils.hpp"
+#include "Utils.hpp"
 
 // @test 6 chars should be condensed into 3 int16 elements
 TEST(DeserializeTest, SizeDecreased) {
@@ -14,7 +16,7 @@ TEST(DeserializeTest, SizeDecreased) {
   ASSERT_EQ(input.length(), 6);
 
   // Pass in a unique copy of the input
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
   ASSERT_EQ(output.Dim(), 3);
 }
@@ -26,7 +28,7 @@ TEST(DeserializeTest, UnevenInputLength) {
   ASSERT_EQ(input.length(), 5);
 
   // Pass in a unique copy of the input
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
   ASSERT_EQ(output.Dim(), 3);
 }
@@ -38,7 +40,7 @@ TEST(DeserializeTest, ValuePreserved) {
   const std::string input = {0x01, 0x00, 0x02, 0x00};
 
   // Pass in a unique copy of the input
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
   // There should be half as many elements in the output
   ASSERT_EQ(input.length() / 2, output.Dim());
@@ -55,7 +57,7 @@ TEST(DeserializeTest, ValueChanged) {
   const std::string input = {0x00, 0x01, 0x00, 0x02};
 
   // Pass in a unique copy of the input
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
   // There should be half as many elements in the output
   ASSERT_EQ(input.length() / 2, output.Dim());
@@ -72,15 +74,15 @@ TEST(DeserializeTest, ConvertValidValues) {
   // Just a check to ensure that this is 20 values
   ASSERT_EQ(input.length(), 20);
 
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
-  const auto expected_output = TestUtils::initializerListToKaldiVector(
+  const auto expectedOutput = TestUtils::initializerListToKaldiVector(
       std::initializer_list<kaldi::BaseFloat>{0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0, 1.0});
 
   // Just a check to ensure that this is 10 values
-  ASSERT_EQ(expected_output.Dim(), 10);
+  ASSERT_EQ(expectedOutput.Dim(), 10);
 
-  ASSERT_TRUE(output.ApproxEqual(expected_output));
+  ASSERT_TRUE(output.ApproxEqual(expectedOutput));
 }
 
 // @test Convert 21 values into 11. Values are taken from audio data. If there's an odd number of
@@ -91,32 +93,32 @@ TEST(DeserializeTest, ConvertValidValues_UnevenAmount) {
                              0,         0, 0, -1, -1, 0, 0, 1, 0, 35};
   ASSERT_EQ(input.length(), 21);
 
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
-  const auto expected_output =
+  const auto expectedOutput =
       TestUtils::initializerListToKaldiVector(std::initializer_list<kaldi::BaseFloat>{
           0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0, 1.0, 35.0});
 
-  ASSERT_EQ(expected_output.Dim(), 11);
+  ASSERT_EQ(expectedOutput.Dim(), 11);
 
-  ASSERT_TRUE(output.ApproxEqual(expected_output));
+  ASSERT_TRUE(output.ApproxEqual(expectedOutput));
 }
 
 // @test Convert -54 lower and 0 upper to 202
 TEST(DeserializeTest, ConvertValidValuesSigned) {
   // These are int values
   const std::string input = {int8_t(-54), 0};
-  const auto input_length = input.length();
+  const auto inputLength = input.length();
 
-  const auto output = kaldi::deserializeAudioData(std::make_unique<std::string>(input));
+  const auto output = mik::stringToKaldiVector(std::make_unique<std::string>(input));
 
-  const auto expected_output =
+  const auto expectedOutput =
       TestUtils::initializerListToKaldiVector(std::initializer_list<kaldi::BaseFloat>{202});
 
   // Output length should be half of input length
-  ASSERT_EQ(input_length / 2, static_cast<size_t>(expected_output.Dim()));
+  ASSERT_EQ(inputLength / 2, static_cast<size_t>(expectedOutput.Dim()));
 
-  for (auto i = 0; i < expected_output.Dim(); ++i) {
-    ASSERT_EQ(expected_output(i), output(i));
+  for (auto i = 0; i < expectedOutput.Dim(); ++i) {
+    ASSERT_EQ(expectedOutput(i), output(i));
   }
 }

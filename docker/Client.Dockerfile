@@ -7,7 +7,7 @@ RUN apk add --update \
   gcc g++ ccache clang cmake \
   git \
   python3 \
-  zlib-dev \
+  zlib-dev util-linux-dev \
   cmake make ninja \
   curl \
   grpc-dev protobuf-dev \

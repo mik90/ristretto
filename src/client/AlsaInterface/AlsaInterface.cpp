@@ -20,6 +20,7 @@ AlsaInterface::AlsaInterface(const AlsaConfig& alsaConfig) : config_(alsaConfig)
 AlsaInterface::~AlsaInterface() {
   SPDLOG_INFO("Destroying AlsaInterface...");
   this->stopRecording();
+  pcmHandle_.reset();
   SPDLOG_INFO("Done destroying AlsaInterface");
 }
 
@@ -33,7 +34,7 @@ snd_pcm_t* AlsaInterface::openSoundDevice(std::string_view pcmDesc, StreamConfig
     return nullptr;
   }
   const std::string iface = (streamDir == StreamConfig::CAPTURE) ? "CAPTURE" : "PLAYBACK";
-  SPDLOG_INFO("Configured interface \'{}\' for {}", pcmDesc, iface);
+  SPDLOG_INFO("Configured interface \"{}\" for {}", pcmDesc, iface);
   return pcmHandle;
 }
 
@@ -103,6 +104,51 @@ Status AlsaInterface::configureInterface() {
   return Status::SUCCESS;
 }
 
+/**
+ * AlsaInterface::audioDurationToBytes()
+ * @brief Given the current configuration, figures out how many bytes a given audio duration will
+ * be.
+ */
+size_t AlsaInterface::audioDurationToBytes(std::chrono::milliseconds duration) const noexcept {
+  const auto duration_us = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+  const auto periodCount = duration_us / config_.periodDuration_us;
+  const auto bytesToGet = static_cast<size_t>(periodCount) * config_.periodSizeBytes;
+  SPDLOG_DEBUG("Given {} ms, get {} periods (each {} bytes) totalling {} bytes", duration.count(),
+               periodCount, config_.periodSizeBytes, bytesToGet);
+  return bytesToGet;
+}
+
+/**
+ * AlsaInterface::bytesToAudioDuration()
+ * @brief Given the current configuration, figures out how long of a duration a given amount of
+ * bytes will be
+ */
+std::chrono::milliseconds AlsaInterface::bytesToAudioDuration(size_t size) const noexcept {
+
+  const auto periodCount = size / config_.periodSizeBytes;
+  const auto duration_us = std::chrono::microseconds(periodCount * config_.periodDuration_us);
+  const auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration_us);
+  SPDLOG_DEBUG("Given {} bytes, get {} periods (each {} bytes) totalling {} milliseconds", size,
+               periodCount, config_.periodSizeBytes, duration_ms.count());
+  return duration_ms;
+}
+
+/**
+ * AlsaInterface::audioDataAvailableBytes()
+ */
+size_t AlsaInterface::audioDataAvailableBytes() const noexcept { return audioData_.size(); }
+
+/**
+ * AlsaInterface::audioDataAvailableMilliseconds()
+ * @brief Returns how many milliseconds of audio data are available
+ */
+std::chrono::milliseconds AlsaInterface::audioDataAvailableMilliseconds() const noexcept {
+  return bytesToAudioDuration(audioData_.size());
+}
+
+/**
+ * AlsaInterface::consumeAllAudioData()
+ */
 std::vector<char> AlsaInterface::consumeAllAudioData() {
   std::scoped_lock<std::mutex> lock(audioChunkMutex_);
   SPDLOG_DEBUG("Consuming all {} bytes of audio data", audioData_.size());
@@ -110,14 +156,13 @@ std::vector<char> AlsaInterface::consumeAllAudioData() {
   return std::exchange(audioData_, std::vector<char>{});
 }
 
-std::vector<char> AlsaInterface::consumeDurationOfAudioData(unsigned int milliseconds) {
+/**
+ * AlsaInterface::consumeDurationOfAudioData()
+ */
+std::vector<char> AlsaInterface::consumeDurationOfAudioData(std::chrono::milliseconds duration) {
   std::scoped_lock<std::mutex> lock(audioChunkMutex_);
-  const auto duration_us = Utils::millisecondsToMicroseconds(milliseconds);
 
-  const auto periodCount = duration_us / config_.periodDuration_us;
-  const auto bytesToGet = periodCount * config_.periodSizeBytes;
-  SPDLOG_DEBUG("Given {} ms, get {} periods totalling {} bytes", milliseconds, periodCount,
-               bytesToGet);
+  const auto bytesToGet = audioDurationToBytes(duration);
 
   if (bytesToGet > audioData_.size()) {
     SPDLOG_WARN(

@@ -8,6 +8,20 @@ run_protoc()
     ./runProtoc.sh
 }
 
+run_tests()
+{
+    echo "Running serverEntry.sh::run_tests()"
+    # Could use ctest binary, but the executable itself is more verbose on CLI
+    #ctest . -E "USER_INPUT|REQUIRES_SERVER"
+
+    # Test resources are copied into bin
+    TEST_BINARY="./build/bin/ServerTest"
+    GTEST_ARGS=" --gtest_filter=* "
+    test -f $TEST_BINARY || { echo "$TEST_BINARY does not exist, have you built it yet?"; exit 1; }
+    CMD="$TEST_BINARY $GTEST_ARGS"
+    eval $CMD
+}
+
 run_build()
 {
     echo "Running serverEntry.sh::run_build()"
@@ -45,7 +59,7 @@ start_server()
     --extra-left-context-initial=0 --frame-subsampling-factor=3 --config=${CONFIG} \
     --min-active=200 --max-active=7000 \
     --beam=15.0 --lattice-beam=6.0 --acoustic-scale=1.0 \
-    --port-num=5050 ${MODEL} ${HCLG} ${WORDS}"
+     ${MODEL} ${HCLG} ${WORDS}"
 
     pushd /opt/ristretto
 
@@ -67,6 +81,9 @@ main()
     fi
     if [ "$SKIP_BUILD" != "YES" ]; then
         run_build
+    fi
+    if [ "$SKIP_TESTS" != "YES" ]; then
+        run_tests
     fi
     if [ "$SKIP_RUN" != "YES" ]; then
         start_server

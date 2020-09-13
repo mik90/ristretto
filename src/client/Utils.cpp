@@ -7,11 +7,24 @@
 #include <iostream>
 #include <iterator>
 
+#include <uuid/uuid.h>
+
 #include "Utils.hpp"
 
 namespace mik {
 
-size_t findSizeOfFileStream(std::istream& str) {
+std::string Utils::generateSessionToken() {
+  uuid_t uuidBinary;
+  uuid_generate_random(uuidBinary);
+  constexpr size_t uuidSize = sizeof(uuid_t);
+
+  std::string token(uuidSize, '0');
+  // Write the UUID binary data into the std::string
+  uuid_unparse_upper(uuidBinary, token.data());
+  return token;
+}
+
+static size_t findSizeOfFileStream(std::istream& str) {
   const auto originalPos = str.tellg();    // Find current pos
   str.seekg(0, str.end);                   // Go back to start
   const std::streampos size = str.tellg(); // Find size
@@ -48,9 +61,9 @@ void Utils::createLogger() {
     hasBeenCalled.store(true);
   }
 
-  // Log level has the color range setup
-  // [D/M/YR Hour:Month:Second.ms]     [thread id] [log level] [source location] message
-  spdlog::set_pattern("[%D %H:%M:%S.%e] [tid %t] [%^%l%$] [%s:%#] %v");
+  // [log level] has color enabled
+  // [D/M/YR Hour:Month:Second.ms]     [thread id] [log level] [file::func():line] message
+  spdlog::set_pattern("[%D %H:%M:%S.%e] [tid %t] [%^%l%$] [%s::%!():%#] %v");
   auto logger = spdlog::basic_logger_mt("RistrettoClientLogger", "logs/ristretto-client.log", true);
   spdlog::set_default_logger(logger);
   spdlog::flush_every(std::chrono::seconds(2));
@@ -65,7 +78,7 @@ unsigned int Utils::secondsToMicroseconds(unsigned int seconds) {
 
 unsigned int Utils::millisecondsToMicroseconds(unsigned int milliseconds) {
   return static_cast<unsigned int>(
-      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds(milliseconds))
+      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(milliseconds))
           .count());
 }
 

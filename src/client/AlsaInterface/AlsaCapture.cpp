@@ -129,7 +129,6 @@ std::vector<char> AlsaInterface::recordForDuration(unsigned int duration) {
       static_cast<unsigned int>(config_.calculateRecordingLoops(recordingDuration_us));
 
   std::vector<char> outputBuffer;
-  outputBuffer.resize(config_.periodSizeBytes * periodsLeft);
   size_t bytesRead = 0;
 
   const auto sndState = snd_pcm_state(pcmHandle_.get());
@@ -139,7 +138,10 @@ std::vector<char> AlsaInterface::recordForDuration(unsigned int duration) {
 
   while (periodsLeft > 0) {
     --periodsLeft;
+    // Ensure we have enough room
+    outputBuffer.resize(bytesRead + config_.periodSizeBytes);
     auto status = snd_pcm_readi(pcmHandle_.get(), outputBuffer.data() + bytesRead, config_.frames);
+
     bytesRead += config_.periodSizeBytes;
 
     if (status == -EPIPE) {

@@ -4,8 +4,9 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
-            "name": "Kaldi TCP server debug",
+            "name": "Kaldi TCP server",
             "type": "cppdbg",
             "request": "launch",
             "program": "/opt/kaldi/src/online2bin/online2-tcp-nnet3-decode-faster",
@@ -28,7 +29,7 @@
             ]
         },
         {
-            "name": "RistrettoServer debug",
+            "name": "Server",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/RistrettoServer",
@@ -51,11 +52,30 @@
             ]
         },
         {
-            "name": "RistrettoClient debug",
+            "name": "Client w/ audio file",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/RistrettoClient",
             "args": ["--file=./test/resources/ClientTestAudio8KHz.raw"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [ ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "ClientTest",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/ClientTest",
+            "args": ["--gtest_filter=*CaptureAudio_Vector"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [ ],

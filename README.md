@@ -4,12 +4,15 @@ Both the client and server have Dockerfiles and there is a docker-compomse that 
 Client/Server communication is done with gRPC. As a note, this is nowhere near done.
 
 ------------------------
+<<<<<<< HEAD
 ## Issues
 - With gRPC 1.28, there was mysterious crashing on Stub destruction. Upgrading to 1.32 introduced errors with misaligned memory allocation
     - This blocks me from development as I was trying to get past this and then be done...
 - Taking yet another long break from this
 
 ------------------------
+=======
+>>>>>>> master
 ## Setup
 - Ristretto is divided into two containers: client and server
     - The client can easily be build/used natively but not the server
@@ -30,6 +33,10 @@ Client/Server communication is done with gRPC. As a note, this is nowhere near d
 
 ------------------------
 ## TODO
+<<<<<<< HEAD
+=======
+- The data wasn't being deserialized correctly on the Ristretto end
+>>>>>>> master
 - Chunk data on the client end
 - Try out TLS/SSL
 - The nnet3 API is made thread-safe by a single mutex at the start, not neat but hopefully it works

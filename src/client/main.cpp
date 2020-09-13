@@ -56,6 +56,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
         return 1;
       }
 
+<<<<<<< HEAD
       const auto transcript = client.decodeAudioSync(audioData, 0);
       if (transcript.empty()) {
         fmt::print("Response was empty!\n");
@@ -85,6 +86,18 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   } catch (...) {
     SPDLOG_ERROR("Caught unknown exception");
     fmt::print("Caught unknown exception\n exiting...");
+=======
+  // TODO Remove Debug audio data
+  SPDLOG_DEBUG("audioData as int8_t (first 20 values)");
+  for (size_t i = 0; i < 20; ++i) {
+    SPDLOG_DEBUG("audioData[{}]:{}", i, static_cast<int8_t>(audioData[i]));
+  }
+
+  const auto transcript = client.decodeAudio(audioData);
+  if (transcript.empty()) {
+    fmt::print("Response was empty!\n");
+    SPDLOG_ERROR("Response was empty!");
+>>>>>>> master
     return 1;
   }
   return 0;

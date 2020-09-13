@@ -8,6 +8,7 @@ run_protoc()
     ./runProtoc.sh
 }
 
+<<<<<<< HEAD
 run_tests()
 {
     echo "Running serverEntry.sh::run_tests()"
@@ -22,6 +23,8 @@ run_tests()
     eval $CMD
 }
 
+=======
+>>>>>>> master
 run_build()
 {
     echo "Running serverEntry.sh::run_build()"

@@ -40,6 +40,10 @@ TEST(AlsaTest, CaptureAudio_Stream) {
 
 TEST(AlsaTest, CaptureAudio_Vector) {
 
+<<<<<<< HEAD
+=======
+  const std::string outputAudio = "test/resources/unittestCapture.raw";
+>>>>>>> master
   mik::AlsaConfig config;
   mik::AlsaInterface alsa(config);
 
@@ -84,16 +88,30 @@ TEST(AlsaTest, ConsumeAllAudio) {
   ASSERT_EQ(internalAudioData.size(), audioData.size());
 }
 
+<<<<<<< HEAD
 TEST(AlsaTest, ConsumeDurationOfAudio_10ms) {
   // Create large vector of default-initialized data
   const std::vector<char> internalAudioData(2048);
+=======
+TEST(AlsaTest, consumeDurationOfAudio_10ms) {
+  // Create large vector of default-initialized data
+  const std::vector<char> internalAudioData(425000);
+>>>>>>> master
   mik::AlsaConfig config;
   MockAlsaInterface alsa(config);
   alsa.setAudioData(internalAudioData);
 
+<<<<<<< HEAD
   // 10 is 2 periods (each 128 bytes) totalling 256 bytes
   const auto audioData = alsa.consumeDurationOfAudioData(10ms);
   ASSERT_EQ(256, audioData.size());
+=======
+  // 10 milliseconds should be 59,904 bytes
+  // This is found with the same calculation that i used to make it, so not the best test
+  // Either i got it wrong the first time or maybe it should be 320,000 bytes
+  const auto audioData = alsa.consumeDurationOfAudioData(10);
+  ASSERT_EQ(59904, audioData.size());
+>>>>>>> master
 }
 
 TEST(AlsaTest, ConsumeDurationOfAudio_LargeRequest) {

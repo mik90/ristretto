@@ -37,15 +37,25 @@
 
 #include <spdlog/spdlog.h>
 
+<<<<<<< HEAD
 namespace mik {
 
 /**
  * Nnet3Data
  * @brief Catch-all class for using online decoding with nnet3. Holds a lot of Kaldi objects
  */
+=======
+#include <mutex>
+#include <spdlog/spdlog.h>
+
+namespace kaldi {
+
+// Catch-all class for using online decoding with nnet3
+>>>>>>> master
 class Nnet3Data {
 
 public:
+<<<<<<< HEAD
   // NOLINTNEXTLINE: Easiest to use cmd line args with kaldi
   Nnet3Data(int argc, const char** argv);
 
@@ -92,3 +102,62 @@ kaldi::int32 GetLatticeTimeSpan(const kaldi::Lattice& lat);
 std::string LatticeToString(const kaldi::CompactLattice& clat, const fst::SymbolTable& wordSyms);
 
 } // namespace mik
+=======
+  Nnet3Data(int argc, char* argv[]);
+
+  // Allows async functions to use the Nnet3 decoder
+  auto getDecoderLambda() {
+    SPDLOG_DEBUG("Creating a decoder lambda");
+    return [this](std::unique_ptr<std::string> audioData) {
+      return this->decodeAudio(std::move(audioData));
+    };
+  }
+
+protected:
+  std::string decodeAudio(std::unique_ptr<std::string> audioData);
+
+private:
+  // TODO These need to be marked as class members somehow
+  // Maybe renamed with pascalCase as well but that's more effort
+  OnlineNnet2FeaturePipelineConfig feature_opts;
+  nnet3::NnetSimpleLoopedComputationOptions decodable_opts;
+  LatticeFasterDecoderConfig decoder_opts;
+  OnlineEndpointConfig endpoint_opts;
+  BaseFloat frame_shift;
+  int32 frame_subsampling;
+  TransitionModel trans_model;
+  nnet3::AmNnetSimple am_nnet;
+  fst::Fst<fst::StdArc>* decode_fst;
+  fst::SymbolTable* word_syms;
+  BaseFloat chunk_length_secs;
+  BaseFloat output_period;
+  BaseFloat samp_freq;
+  int port_num;
+  int read_timeout;
+  bool produce_time;
+  int32 samp_count;
+  size_t chunk_len;
+  int32 check_period;
+  int32 check_count;
+  int32 frame_offset;
+  std::unique_ptr<OnlineNnet2FeaturePipeline> feature_pipeline_ptr;
+  std::unique_ptr<SingleUtteranceNnet3Decoder> decoder_ptr;
+  std::unique_ptr<OnlineSilenceWeighting> silence_weighting_ptr;
+  std::unique_ptr<OnlineNnet2FeaturePipelineInfo> feature_info_ptr;
+  std::unique_ptr<nnet3::DecodableNnetSimpleLoopedInfo> decodable_info_ptr;
+  std::vector<std::pair<int32, BaseFloat>> delta_weights;
+
+  std::mutex decoder_mutex;
+};
+
+Vector<BaseFloat> deserializeAudioData(std::unique_ptr<std::string> audioDataPtr);
+
+int runDecodeServer(int argc, char* argv[]);
+
+std::string LatticeToString(const Lattice& lat, const fst::SymbolTable& word_syms);
+std::string GetTimeString(int32 t_beg, int32 t_end, BaseFloat time_unit);
+int32 GetLatticeTimeSpan(const Lattice& lat);
+std::string LatticeToString(const CompactLattice& clat, const fst::SymbolTable& word_syms);
+
+} // namespace kaldi
+>>>>>>> master

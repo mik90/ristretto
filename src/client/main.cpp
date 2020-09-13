@@ -44,9 +44,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   mik::RistrettoClient client(grpc::CreateChannel(serverAddr, grpc::InsecureChannelCredentials()));
   fmt::print("Client started\n");
 
-  // ######################################################
-  return 0; // FOR TESTING RistrettoClient destructor
-            // ######################################################
   try {
     const auto audioFile = args[std::string("--file")];
     if (audioFile) {

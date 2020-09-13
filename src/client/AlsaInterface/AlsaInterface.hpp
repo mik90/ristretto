@@ -30,11 +30,14 @@ enum class StreamConfig : unsigned int {
 enum class ChannelConfig : unsigned int { MONO = 1, STEREO = 2 };
 struct SndPcmDeleter {
   void operator()(snd_pcm_t* p) {
-    int err = snd_pcm_close(p);
+    if (p == nullptr) {
+      return;
+    }
+    int err = 0; // snd_pcm_close(p);
     if (err != 0) {
       std::cerr << "Could not close snd_pcm_t*, error:" << std::strerror(err) << std::endl;
     }
-    p = nullptr;
+    // p = nullptr;
   }
 };
 

@@ -26,14 +26,6 @@ RistrettoClient::RistrettoClient(const std::shared_ptr<grpc::Channel>& channel, 
 }
 
 /**
- * RistrettoClient::~RistrettoClient
- */
-RistrettoClient::~RistrettoClient() {
-  SPDLOG_INFO("Destroying RistrettoClient");
-  stub_.reset();
-}
-
-/**
  * RistrettoClient::recordAudioChunks
  * @brief Starts recording and saves the audio in the input queue as protobuf objects
  */

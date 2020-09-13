@@ -44,3 +44,4 @@ Testing/
 *.out
 *.app
 
+test/resources/unittestCapture.raw

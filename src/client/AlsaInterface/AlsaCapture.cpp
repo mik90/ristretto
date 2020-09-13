@@ -29,9 +29,6 @@ void AlsaInterface::stopRecording() {
   if (recordingThread_.joinable()) {
     recordingThread_.join();
   }
-  if (pcmHandle_) {
-    snd_pcm_drop(pcmHandle_.get());
-  }
   SPDLOG_INFO("Recording stopped.");
 }
 
